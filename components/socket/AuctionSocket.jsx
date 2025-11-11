@@ -21,10 +21,12 @@ export default function useAuctionSocket(tournamentId, onEvent = null) {
 
     // Listen for auction events
     socketInstance.on('auction:started', (data) => {
+      console.log('Auction started event received:', data);
       setIsActive(data.isActive);
     });
 
     socketInstance.on('player:selected', (data) => {
+      console.log('Player selected event received:', data);
       setCurrentPlayer(data.player);
       setCurrentBidPrice(data.currentBidPrice);
       setIsActive(true);

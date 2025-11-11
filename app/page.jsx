@@ -23,6 +23,9 @@ export default function HomePage() {
     isActive,
     teams: socketTeams,
     setTeams: setSocketTeams,
+    setCurrentPlayer,
+    setCurrentBidPrice,
+    setIsActive,
   } = useAuctionSocket(selectedTournament, (data) => {
     // Handle bid placed - show team name
     if (data.type === 'bid') {
@@ -145,8 +148,19 @@ export default function HomePage() {
   const fetchCurrentAuction = async () => {
     try {
       const response = await auctionAPI.getCurrent(selectedTournament);
-      if (response.data.success && response.data.data.currentPlayer) {
-        // Current player and bid will be updated via socket
+      if (response.data.success && response.data.data) {
+        const { currentPlayer: player, currentBidPrice: bidPrice, isActive: active } = response.data.data;
+        // Set initial state from API response (socket will update it in real-time)
+        if (player) {
+          setCurrentPlayer(player);
+          setCurrentBidPrice(bidPrice || player.basePrice);
+          setIsActive(active || true);
+        } else {
+          // No active auction
+          setCurrentPlayer(null);
+          setCurrentBidPrice(null);
+          setIsActive(false);
+        }
       }
     } catch (error) {
       console.error('Error fetching current auction:', error);
