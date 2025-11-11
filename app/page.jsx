@@ -6,6 +6,7 @@ import useAuctionSocket from '@/components/socket/AuctionSocket';
 import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import UserHeader from '@/components/shared/UserHeader';
 
 export default function HomePage() {
   const [tournaments, setTournaments] = useState([]);
@@ -154,28 +155,10 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-primary-600">BiddingCrease</h1>
-            <nav className="flex space-x-4">
-              <Link href="/players" className="text-gray-600 hover:text-gray-900">
-                Players
-              </Link>
-              <Link href="/teams" className="text-gray-600 hover:text-gray-900">
-                Teams
-              </Link>
-              <Link href="/tournament" className="text-gray-600 hover:text-gray-900">
-                Tournament
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <UserHeader />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Tournament Selector */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -196,65 +179,65 @@ export default function HomePage() {
         </div>
 
         {/* Live Auction */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Current Player */}
           <div className="lg:col-span-2">
-            <div className="bg-white shadow rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-900">Live Auction</h2>
+            <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Live Auction</h2>
                 {isActive && (
-                  <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium animate-pulse">
+                  <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs sm:text-sm font-medium animate-pulse w-fit">
                     LIVE
                   </span>
                 )}
               </div>
               {currentPlayer ? (
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-4">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
                     <PlayerAvatar player={currentPlayer} size="xl" />
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <Link href={`/players/${currentPlayer._id}`} className="text-3xl font-bold text-gray-900 hover:text-primary-600">
+                    <div className="flex-1 text-center sm:text-left">
+                      <div className="flex items-center justify-center sm:justify-start space-x-2">
+                        <Link href={`/players/${currentPlayer._id}`} className="text-2xl sm:text-3xl font-bold text-gray-900 hover:text-primary-600 break-words">
                           {currentPlayer.name}
                         </Link>
                         {currentPlayer.category === 'Icon' && (
-                          <span className="text-yellow-500 text-2xl" title="Icon Player">⭐</span>
+                          <span className="text-yellow-500 text-xl sm:text-2xl flex-shrink-0" title="Icon Player">⭐</span>
                         )}
                       </div>
-                      <p className="text-xl text-gray-600">{currentPlayer.role}</p>
+                      <p className="text-lg sm:text-xl text-gray-600">{currentPlayer.role}</p>
                       {currentPlayer.battingStyle && (
-                        <p className="text-sm text-gray-500">Batting: {currentPlayer.battingStyle}</p>
+                        <p className="text-xs sm:text-sm text-gray-500">Batting: {currentPlayer.battingStyle}</p>
                       )}
                       {currentPlayer.bowlingStyle && (
-                        <p className="text-sm text-gray-500">Bowling: {currentPlayer.bowlingStyle}</p>
+                        <p className="text-xs sm:text-sm text-gray-500">Bowling: {currentPlayer.bowlingStyle}</p>
                       )}
                     </div>
                   </div>
                   <div className="border-t pt-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Base Price:</span>
-                      <span className="text-xl font-bold text-gray-900">
+                      <span className="text-sm sm:text-base text-gray-600">Base Price:</span>
+                      <span className="text-lg sm:text-xl font-bold text-gray-900">
                         {formatCurrency(currentPlayer.basePrice)}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center mt-4">
-                      <span className="text-2xl font-bold text-gray-900">Current Bid:</span>
-                      <span className="text-4xl font-bold text-primary-600">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-4 gap-2">
+                      <span className="text-xl sm:text-2xl font-bold text-gray-900">Current Bid:</span>
+                      <span className="text-3xl sm:text-4xl font-bold text-primary-600">
                         {formatCurrency(currentBidPrice || currentPlayer.basePrice)}
                       </span>
                     </div>
                     {currentBidTeam && (
-                      <div className="mt-2 text-center">
-                        <span className="text-sm text-gray-600">Bid by: </span>
-                        <span className="text-sm font-bold text-primary-600">{currentBidTeam}</span>
+                      <div className="mt-2 text-center sm:text-left">
+                        <span className="text-xs sm:text-sm text-gray-600">Bid by: </span>
+                        <span className="text-xs sm:text-sm font-bold text-primary-600">{currentBidTeam}</span>
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <p className="text-xl">No auction in progress</p>
-                  <p className="text-sm mt-2">Wait for the auction to start</p>
+                <div className="text-center py-8 sm:py-12 text-gray-500">
+                  <p className="text-lg sm:text-xl">No auction in progress</p>
+                  <p className="text-xs sm:text-sm mt-2">Wait for the auction to start</p>
                 </div>
               )}
               
@@ -333,27 +316,31 @@ export default function HomePage() {
           </div>
 
           {/* Teams List */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Teams</h2>
+          <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Teams</h2>
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {teams.map((team) => (
-                <div key={team._id} className="p-3 rounded-md border border-gray-200">
-                  <Link href={`/teams/${team._id}`} className="font-medium text-gray-900 hover:text-primary-600">
-                    {team.name}
-                  </Link>
-                  <div className="text-sm text-gray-600">
-                    Balance: {formatCurrency(team.remainingAmount)}
-                  </div>
-                  {maxBids[team._id] !== undefined && (
-                    <div className="text-sm font-medium text-primary-600">
-                      Max Bid: {formatCurrency(maxBids[team._id])}
+              {teams.length > 0 ? (
+                teams.map((team) => (
+                  <div key={team._id} className="p-3 rounded-md border border-gray-200">
+                    <Link href={`/teams/${team._id}`} className="block font-medium text-gray-900 hover:text-primary-600 text-sm sm:text-base">
+                      {team.name}
+                    </Link>
+                    <div className="text-xs sm:text-sm text-gray-600 mt-1">
+                      Balance: {formatCurrency(team.remainingAmount)}
                     </div>
-                  )}
-                  <div className="text-sm text-gray-600">
-                    Players: {team.players?.length || 0}
+                    {maxBids[team._id] !== undefined && (
+                      <div className="text-xs sm:text-sm font-medium text-primary-600 mt-1">
+                        Max Bid: {formatCurrency(maxBids[team._id])}
+                      </div>
+                    )}
+                    <div className="text-xs sm:text-sm text-gray-600 mt-1">
+                      Players: {team.players?.length || 0}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">No teams available</p>
+              )}
             </div>
           </div>
         </div>

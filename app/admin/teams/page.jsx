@@ -16,7 +16,7 @@ const teamSchema = Yup.object().shape({
   name: Yup.string()
     .required('Name is required')
     .min(2, 'Name must be at least 2 characters'),
-  logo: Yup.string().url('Must be a valid URL'),
+  logo: Yup.mixed(),
   owner: Yup.string()
     .required('Owner is required')
     .min(2, 'Owner name must be at least 2 characters'),
@@ -37,6 +37,8 @@ export default function TeamsPage() {
   const [editingTeam, setEditingTeam] = useState(null);
   const [selectedTournament, setSelectedTournament] = useState('');
   const [submitError, setSubmitError] = useState('');
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, name: '' });
   const [pagination, setPagination] = useState({
     page: 1,
@@ -48,7 +50,6 @@ export default function TeamsPage() {
   const formik = useFormik({
     initialValues: {
       name: '',
-      logo: '',
       owner: '',
       mobile: '',
       budget: '',
@@ -58,19 +59,32 @@ export default function TeamsPage() {
     onSubmit: async (values, { setSubmitting, resetForm }) => {
       try {
         setSubmitError('');
-        const data = {
-          ...values,
-          budget: values.budget ? Number(values.budget) : undefined,
-        };
+        const formData = new FormData();
+        
+        Object.keys(values).forEach((key) => {
+          if (values[key] !== '' && values[key] !== null && values[key] !== undefined) {
+            if (key === 'budget' && values[key]) {
+              formData.append(key, Number(values[key]));
+            } else {
+              formData.append(key, values[key]);
+            }
+          }
+        });
+        
+        if (logoFile) {
+          formData.append('logo', logoFile);
+        }
 
         if (editingTeam) {
-          await teamAPI.update(editingTeam._id, data);
+          await teamAPI.update(editingTeam._id, formData);
         } else {
-          await teamAPI.create(data);
+          await teamAPI.create(formData);
         }
         
         setIsModalOpen(false);
         setEditingTeam(null);
+        setLogoFile(null);
+        setLogoPreview('');
         resetForm();
         fetchTeams(selectedTournament, pagination.page, pagination.limit);
       } catch (error) {
@@ -149,12 +163,25 @@ export default function TeamsPage() {
     fetchTeams(selectedTournament, 1, newLimit);
   };
 
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleEdit = (team) => {
     setEditingTeam(team);
     setSubmitError('');
+    setLogoFile(null);
+    setLogoPreview(team.logo || '');
     formik.setValues({
       name: team.name,
-      logo: team.logo || '',
       owner: team.owner,
       mobile: team.mobile,
       budget: team.budget ? team.budget.toString() : '',
@@ -327,17 +354,24 @@ export default function TeamsPage() {
             placeholder="Enter team name"
           />
 
-          <FormInput
-            label="Logo URL"
-            name="logo"
-            type="text"
-            value={formik.values.logo}
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            error={formik.errors.logo}
-            touched={formik.touched.logo}
-            placeholder="https://example.com/logo.png"
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Logo
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleLogoChange}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+            />
+            {logoPreview && (
+              <img
+                src={logoPreview}
+                alt="Logo preview"
+                className="mt-2 h-20 w-20 object-cover rounded"
+              />
+            )}
+          </div>
 
           <FormInput
             label="Owner"

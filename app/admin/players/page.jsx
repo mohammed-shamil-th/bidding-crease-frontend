@@ -75,14 +75,14 @@ export default function PlayersPage() {
 
   const formik = useFormik({
     initialValues: {
-      name: '',
-      mobile: '',
-      role: 'Batter',
-      battingStyle: '',
-      bowlingStyle: '',
-      category: 'Local',
-      basePrice: '',
-      tournamentId: '',
+    name: '',
+    mobile: '',
+    role: 'Batter',
+    battingStyle: '',
+    bowlingStyle: '',
+    category: 'Local',
+    basePrice: '',
+    tournamentId: '',
     },
     validationSchema: playerSchema,
     onSubmit: async (values, { setSubmitting, resetForm }) => {
@@ -374,7 +374,7 @@ export default function PlayersPage() {
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 <Link href={`/admin/players/${player._id}`} className="text-primary-600 hover:text-primary-900">
-                  {player.name}
+                {player.name}
                 </Link>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -449,6 +449,7 @@ export default function PlayersPage() {
             name="tournamentId"
             type="select"
             required
+            disabled={editingPlayer && editingPlayer.soldPrice && editingPlayer.soldTo}
             value={formik.values.tournamentId}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
@@ -485,8 +486,8 @@ export default function PlayersPage() {
           <FormInput
             label="Name"
             name="name"
-            type="text"
-            required
+              type="text"
+              required
             value={formik.values.name}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
@@ -498,8 +499,8 @@ export default function PlayersPage() {
           <FormInput
             label="Mobile"
             name="mobile"
-            type="text"
-            required
+              type="text"
+              required
             value={formik.values.mobile}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
@@ -512,7 +513,7 @@ export default function PlayersPage() {
             label="Role"
             name="role"
             type="select"
-            required
+              required
             value={formik.values.role}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
@@ -568,7 +569,7 @@ export default function PlayersPage() {
             label="Category"
             name="category"
             type="select"
-            required
+              required
             value={formik.values.category}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
@@ -584,9 +585,9 @@ export default function PlayersPage() {
           <FormInput
             label="Base Price"
             name="basePrice"
-            type="number"
-            required
-            min="0"
+              type="number"
+              required
+              min="0"
             value={formik.values.basePrice}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
@@ -600,7 +601,7 @@ export default function PlayersPage() {
             <>
               <div className="border-t pt-4 mt-4">
                 <h3 className="text-sm font-medium text-gray-700 mb-4">Sale Details</h3>
-              </div>
+          </div>
               <FormInput
                 label="Sold Price"
                 name="soldPrice"

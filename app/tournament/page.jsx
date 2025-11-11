@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { tournamentAPI, ruleAPI } from '@/lib/api';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import Link from 'next/link';
+import UserHeader from '@/components/shared/UserHeader';
 
 export default function TournamentPage() {
   const [tournaments, setTournaments] = useState([]);
@@ -55,33 +56,11 @@ export default function TournamentPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-3xl font-bold text-primary-600">
-              BiddingCrease
-            </Link>
-            <nav className="flex space-x-4">
-              <Link href="/" className="text-gray-600 hover:text-gray-900">
-                Live Auction
-              </Link>
-              <Link href="/players" className="text-gray-600 hover:text-gray-900">
-                Players
-              </Link>
-              <Link href="/teams" className="text-gray-600 hover:text-gray-900">
-                Teams
-              </Link>
-              <Link href="/tournament" className="text-gray-900 font-medium">
-                Tournament
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <UserHeader />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Tournament Information</h1>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Tournament Information</h1>
           <p className="mt-2 text-sm text-gray-600">View tournament details and rules</p>
         </div>
 
@@ -106,20 +85,22 @@ export default function TournamentPage() {
         </div>
 
         {selectedTournament && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Tournament Info */}
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                {selectedTournament.name}
-              </h2>
-              {selectedTournament.logo && (
-                <img
-                  src={selectedTournament.logo}
-                  alt={selectedTournament.name}
-                  className="h-24 w-24 object-cover rounded mb-4"
-                />
-              )}
-              <div className="space-y-3">
+            <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {selectedTournament.name}
+                </h2>
+                {selectedTournament.logo && (
+                  <img
+                    src={selectedTournament.logo}
+                    alt={selectedTournament.name}
+                    className="h-20 w-20 sm:h-24 sm:w-24 object-cover rounded flex-shrink-0"
+                  />
+                )}
+              </div>
+              <div className="space-y-2 sm:space-y-3">
                 <div>
                   <span className="text-sm font-medium text-gray-600">Category:</span>
                   <span className="ml-2 text-sm text-gray-900 capitalize">

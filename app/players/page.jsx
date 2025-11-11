@@ -7,6 +7,7 @@ import Link from 'next/link';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
 import Pagination from '@/components/shared/Pagination';
 import SearchInput from '@/components/shared/SearchInput';
+import UserHeader from '@/components/shared/UserHeader';
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState([]);
@@ -112,125 +113,107 @@ export default function PlayersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-3xl font-bold text-primary-600">
-              BiddingCrease
-            </Link>
-            <nav className="flex space-x-4">
-              <Link href="/" className="text-gray-600 hover:text-gray-900">
-                Live Auction
-              </Link>
-              <Link href="/players" className="text-gray-900 font-medium">
-                Players
-              </Link>
-              <Link href="/teams" className="text-gray-600 hover:text-gray-900">
-                Teams
-              </Link>
-              <Link href="/tournament" className="text-gray-600 hover:text-gray-900">
-                Tournament
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <UserHeader />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Players</h1>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="mb-6 sm:mb-8">
+          <div className="mb-4 sm:mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Players</h1>
             <p className="mt-2 text-sm text-gray-600">View all players</p>
           </div>
-          <div className="flex flex-wrap gap-4">
-            <SearchInput
-              value={searchInput}
-              onChange={setSearchInput}
-              placeholder="Search players..."
-            />
-            <select
-              value={selectedTournament}
-              onChange={(e) => setSelectedTournament(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">All Tournaments</option>
-              {tournaments.map((tournament) => (
-                <option key={tournament._id} value={tournament._id}>
-                  {tournament.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="all">All Players</option>
-              <option value="sold">Sold</option>
-              <option value="unsold">Unsold</option>
-            </select>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="all">All Categories</option>
-              <option value="Icon">Icon</option>
-              <option value="Local">Local</option>
-              <option value="Guest">Guest</option>
-            </select>
-            <select
-              value={`${sortBy}-${sortOrder}`}
-              onChange={(e) => {
-                const [by, order] = e.target.value.split('-');
-                setSortBy(by);
-                setSortOrder(order);
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="name-asc">Name (A-Z)</option>
-              <option value="name-desc">Name (Z-A)</option>
-              <option value="createdAt-desc">Newest First</option>
-              <option value="createdAt-asc">Oldest First</option>
-            </select>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="flex-1 min-w-0">
+              <SearchInput
+                value={searchInput}
+                onChange={setSearchInput}
+                placeholder="Search players..."
+              />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <select
+                value={selectedTournament}
+                onChange={(e) => setSelectedTournament(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">All Tournaments</option>
+                {tournaments.map((tournament) => (
+                  <option key={tournament._id} value={tournament._id}>
+                    {tournament.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="all">All Players</option>
+                <option value="sold">Sold</option>
+                <option value="unsold">Unsold</option>
+              </select>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="all">All Categories</option>
+                <option value="Icon">Icon</option>
+                <option value="Local">Local</option>
+                <option value="Guest">Guest</option>
+              </select>
+              <select
+                value={`${sortBy}-${sortOrder}`}
+                onChange={(e) => {
+                  const [by, order] = e.target.value.split('-');
+                  setSortBy(by);
+                  setSortOrder(order);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="createdAt-desc">Newest First</option>
+                <option value="createdAt-asc">Oldest First</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
           {filteredPlayers.map((player) => (
-            <div key={player._id} className="bg-white shadow rounded-lg overflow-hidden">
-              <div className="flex justify-center items-center bg-gray-100 h-48">
+            <Link key={player._id} href={`/players/${player._id}`} className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="flex justify-center items-center bg-gray-100 h-40 sm:h-48">
                 <PlayerAvatar player={player} size="xl" />
               </div>
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 <div className="flex items-center space-x-2">
-                  <h3 className="text-lg font-bold text-gray-900">{player.name}</h3>
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate">{player.name}</h3>
                   {player.category === 'Icon' && (
-                    <span className="text-yellow-500" title="Icon Player">⭐</span>
+                    <span className="text-yellow-500 flex-shrink-0" title="Icon Player">⭐</span>
                   )}
                 </div>
-                <p className="text-sm text-gray-600">{player.role}</p>
-                <p className="text-sm text-gray-500">{player.category}</p>
+                <p className="text-xs sm:text-sm text-gray-600">{player.role}</p>
+                <p className="text-xs sm:text-sm text-gray-500">{player.category}</p>
                 <div className="mt-2">
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs sm:text-sm text-gray-600">
                     Base Price: {formatCurrency(player.basePrice)}
                   </p>
                   {player.soldPrice && (
-                    <p className="text-sm font-bold text-green-600">
+                    <p className="text-xs sm:text-sm font-bold text-green-600">
                       Sold: {formatCurrency(player.soldPrice)}
                     </p>
                   )}
                   {player.soldTo && (
-                    <p className="text-sm text-gray-600">
+                    <p className="text-xs sm:text-sm text-gray-600 truncate">
                       Team:{' '}
-                      <Link href={`/teams/${player.soldTo._id || player.soldTo}`} className="text-primary-600 hover:text-primary-900">
+                      <span className="text-primary-600 hover:text-primary-900">
                         {player.soldTo.name}
-                      </Link>
+                      </span>
                     </p>
                   )}
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 

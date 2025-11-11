@@ -16,7 +16,7 @@ const tournamentSchema = Yup.object().shape({
   name: Yup.string()
     .required('Name is required')
     .min(3, 'Name must be at least 3 characters'),
-  logo: Yup.string().url('Must be a valid URL'),
+  logo: Yup.mixed(),
   category: Yup.string()
     .oneOf(['open', 'private'], 'Category must be open or private')
     .required('Category is required'),
@@ -65,6 +65,8 @@ export default function TournamentsPage() {
   const [editingTournament, setEditingTournament] = useState(null);
   const [submitError, setSubmitError] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, name: '' });
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -75,7 +77,6 @@ export default function TournamentsPage() {
   const formik = useFormik({
     initialValues: {
       name: '',
-      logo: '',
       category: 'open',
       location: '',
       auctionDate: '',
@@ -91,23 +92,32 @@ export default function TournamentsPage() {
     onSubmit: async (values, { setSubmitting, resetForm }) => {
       try {
         setSubmitError('');
-        const data = {
-          ...values,
-          teamBudget: Number(values.teamBudget),
-          minPlayers: Number(values.minPlayers),
-          maxPlayers: Number(values.maxPlayers),
-          totalTeams: Number(values.totalTeams),
-          totalPlayers: Number(values.totalPlayers),
-        };
+        const formData = new FormData();
+        
+        Object.keys(values).forEach((key) => {
+          if (values[key] !== '' && values[key] !== null && values[key] !== undefined) {
+            if (['teamBudget', 'minPlayers', 'maxPlayers', 'totalTeams', 'totalPlayers'].includes(key)) {
+              formData.append(key, Number(values[key]));
+            } else {
+              formData.append(key, values[key]);
+            }
+          }
+        });
+        
+        if (logoFile) {
+          formData.append('logo', logoFile);
+        }
 
         if (editingTournament) {
-          await tournamentAPI.update(editingTournament._id, data);
+          await tournamentAPI.update(editingTournament._id, formData);
         } else {
-          await tournamentAPI.create(data);
+          await tournamentAPI.create(formData);
         }
         
         setIsModalOpen(false);
         setEditingTournament(null);
+        setLogoFile(null);
+        setLogoPreview('');
         resetForm();
         fetchTournaments(pagination.page, pagination.limit);
       } catch (error) {
@@ -155,12 +165,25 @@ export default function TournamentsPage() {
     fetchTournaments(1, newLimit);
   };
 
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleEdit = (tournament) => {
     setEditingTournament(tournament);
     setSubmitError('');
+    setLogoFile(null);
+    setLogoPreview(tournament.logo || '');
     formik.setValues({
       name: tournament.name,
-      logo: tournament.logo || '',
       category: tournament.category,
       location: tournament.location,
       auctionDate: tournament.auctionDate.split('T')[0],
@@ -195,6 +218,8 @@ export default function TournamentsPage() {
     setIsModalOpen(false);
     setEditingTournament(null);
     setSubmitError('');
+    setLogoFile(null);
+    setLogoPreview('');
     formik.resetForm();
   };
 
@@ -306,17 +331,24 @@ export default function TournamentsPage() {
             placeholder="Enter tournament name"
           />
 
-          <FormInput
-            label="Logo URL"
-            name="logo"
-            type="text"
-            value={formik.values.logo}
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            error={formik.errors.logo}
-            touched={formik.touched.logo}
-            placeholder="https://example.com/logo.png"
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Logo
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleLogoChange}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+            />
+            {logoPreview && (
+              <img
+                src={logoPreview}
+                alt="Logo preview"
+                className="mt-2 h-20 w-20 object-cover rounded"
+              />
+            )}
+          </div>
 
           <FormInput
             label="Category"

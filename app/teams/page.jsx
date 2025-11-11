@@ -5,6 +5,7 @@ import { teamAPI, tournamentAPI, playerAPI } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import UserHeader from '@/components/shared/UserHeader';
 
 export default function TeamsPage() {
   const [teams, setTeams] = useState([]);
@@ -71,40 +72,18 @@ export default function TeamsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-3xl font-bold text-primary-600">
-              BiddingCrease
-            </Link>
-            <nav className="flex space-x-4">
-              <Link href="/" className="text-gray-600 hover:text-gray-900">
-                Live Auction
-              </Link>
-              <Link href="/players" className="text-gray-600 hover:text-gray-900">
-                Players
-              </Link>
-              <Link href="/teams" className="text-gray-900 font-medium">
-                Teams
-              </Link>
-              <Link href="/tournament" className="text-gray-600 hover:text-gray-900">
-                Tournament
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <UserHeader />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8 flex justify-between items-center">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Teams</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Teams</h1>
             <p className="mt-2 text-sm text-gray-600">View all teams and squads</p>
           </div>
           <select
             value={selectedTournament}
             onChange={(e) => setSelectedTournament(e.target.value)}
-            className="border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+            className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
           >
             <option value="">All Tournaments</option>
             {tournaments.map((tournament) => (
@@ -115,57 +94,66 @@ export default function TeamsPage() {
           </select>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {teams.map((team) => (
-            <div key={team._id} className="bg-white shadow rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-900">{team.name}</h2>
-                {team.logo && (
-                  <img src={team.logo} alt={team.name} className="h-12 w-12 object-cover" />
-                )}
-              </div>
-              <div className="space-y-2 mb-4">
-                <p className="text-sm text-gray-600">Owner: {team.owner}</p>
-                <p className="text-sm text-gray-600">
-                  Budget: {formatCurrency(team.budget)}
-                </p>
-                <p className="text-sm font-bold text-gray-900">
-                  Remaining: {formatCurrency(team.remainingAmount)}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Players: {team.playersData?.length || 0}
-                </p>
-              </div>
-              <div className="border-t pt-4">
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Squad</h3>
-                <div className="space-y-2">
-                  {team.playersData && team.playersData.length > 0 ? (
-                    team.playersData.map((player) => (
-                      <div key={player._id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                        <div className="flex items-center space-x-2">
-                          <PlayerAvatar player={player} size="sm" />
-                          <div>
-                            <div className="flex items-center space-x-1">
-                              <p className="text-sm font-medium text-gray-900">{player.name}</p>
-                              {player.category === 'Icon' && (
-                                <span className="text-yellow-500" title="Icon Player">⭐</span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-500">{player.role}</p>
-                          </div>
-                        </div>
-                        <p className="text-sm font-bold text-gray-900">
-                          {formatCurrency(player.soldPrice)}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500">No players yet</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          {teams.length > 0 ? (
+            teams.map((team) => (
+              <div key={team._id} className="bg-white shadow rounded-lg p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <Link href={`/teams/${team._id}`} className="text-xl sm:text-2xl font-bold text-gray-900 hover:text-primary-600">
+                    {team.name}
+                  </Link>
+                  {team.logo && (
+                    <img src={team.logo} alt={team.name} className="h-10 w-10 sm:h-12 sm:w-12 object-cover rounded" />
                   )}
                 </div>
+                <div className="space-y-2 mb-4">
+                  <p className="text-xs sm:text-sm text-gray-600">Owner: {team.owner}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">
+                    Budget: {formatCurrency(team.budget)}
+                  </p>
+                  <p className="text-xs sm:text-sm font-bold text-gray-900">
+                    Remaining: {formatCurrency(team.remainingAmount)}
+                  </p>
+                  <p className="text-xs sm:text-sm text-gray-600">
+                    Players: {team.playersData?.length || 0}
+                  </p>
+                </div>
+                <div className="border-t pt-4">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">Squad</h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {team.playersData && team.playersData.length > 0 ? (
+                      team.playersData.map((player) => (
+                        <Link key={player._id} href={`/players/${player._id}`} className="flex items-center justify-between p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors">
+                          <div className="flex items-center space-x-2 flex-1 min-w-0">
+                            <PlayerAvatar player={player} size="sm" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center space-x-1">
+                                <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">{player.name}</p>
+                                {player.category === 'Icon' && (
+                                  <span className="text-yellow-500 flex-shrink-0" title="Icon Player">⭐</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500">{player.role}</p>
+                            </div>
+                          </div>
+                          <p className="text-xs sm:text-sm font-bold text-gray-900 ml-2 flex-shrink-0">
+                            {formatCurrency(player.soldPrice)}
+                          </p>
+                        </Link>
+                      ))
+                    ) : (
+                      <p className="text-xs sm:text-sm text-gray-500">No players yet</p>
+                    )}
+                  </div>
+                </div>
               </div>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12 text-gray-500">
+              <p className="text-lg">No teams found</p>
+              <p className="text-sm mt-2">Try selecting a different tournament</p>
             </div>
-          ))}
+          )}
         </div>
       </main>
     </div>

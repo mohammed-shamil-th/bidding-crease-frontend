@@ -6,6 +6,7 @@ import { teamAPI } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
 import Link from 'next/link';
+import UserHeader from '@/components/shared/UserHeader';
 
 export default function TeamDetailPage() {
   const params = useParams();
@@ -73,64 +74,56 @@ export default function TeamDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link href="/" className="text-primary-600 hover:text-primary-900 mb-2 inline-block">
-            ← Back to Home
-          </Link>
-          <h1 className="text-3xl font-bold text-primary-600">BiddingCrease</h1>
-        </div>
-      </header>
+      <UserHeader />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8 flex items-center justify-between">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <Link
               href="/teams"
-              className="text-primary-600 hover:text-primary-900 mb-2 inline-block"
+              className="text-primary-600 hover:text-primary-900 mb-2 inline-block text-sm sm:text-base"
             >
               ← Back to Teams
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900">{team.name}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{team.name}</h1>
             <p className="mt-2 text-sm text-gray-600">Team Details and Squad</p>
           </div>
           {team.logo && (
-            <img src={team.logo} alt={team.name} className="h-20 w-20 object-cover rounded-lg" />
+            <img src={team.logo} alt={team.name} className="h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-lg flex-shrink-0" />
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Team Information */}
           <div className="lg:col-span-1">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Team Information</h2>
+            <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Team Information</h2>
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-gray-600">Owner</p>
-                  <p className="text-lg font-medium text-gray-900">{team.owner}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Owner</p>
+                  <p className="text-base sm:text-lg font-medium text-gray-900">{team.owner}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Mobile</p>
-                  <p className="text-lg font-medium text-gray-900">{team.mobile}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Mobile</p>
+                  <p className="text-base sm:text-lg font-medium text-gray-900">{team.mobile}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Budget</p>
-                  <p className="text-lg font-medium text-gray-900">{formatCurrency(team.budget)}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Budget</p>
+                  <p className="text-base sm:text-lg font-medium text-gray-900">{formatCurrency(team.budget)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Remaining Amount</p>
-                  <p className="text-lg font-bold text-primary-600">
+                  <p className="text-xs sm:text-sm text-gray-600">Remaining Amount</p>
+                  <p className="text-base sm:text-lg font-bold text-primary-600">
                     {formatCurrency(team.remainingAmount)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Spent</p>
-                  <p className="text-lg font-bold text-gray-900">{formatCurrency(totalSpent)}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Total Spent</p>
+                  <p className="text-base sm:text-lg font-bold text-gray-900">{formatCurrency(totalSpent)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Players Count</p>
-                  <p className="text-lg font-medium text-gray-900">{players.length}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Players Count</p>
+                  <p className="text-base sm:text-lg font-medium text-gray-900">{players.length}</p>
                 </div>
               </div>
             </div>
@@ -138,35 +131,35 @@ export default function TeamDetailPage() {
 
           {/* Squad */}
           <div className="lg:col-span-2">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Squad</h2>
+            <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Squad</h2>
               {players.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {players.map((player) => (
                     <div
                       key={player._id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200 gap-3 sm:gap-0"
                     >
-                      <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
                         <PlayerAvatar player={player} size="md" />
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center space-x-2">
                             <Link
                               href={`/players/${player._id}`}
-                              className="text-lg font-bold text-gray-900 hover:text-primary-600"
+                              className="text-base sm:text-lg font-bold text-gray-900 hover:text-primary-600 truncate"
                             >
                               {player.name}
                             </Link>
                             {player.category === 'Icon' && (
-                              <span className="text-yellow-500" title="Icon Player">⭐</span>
+                              <span className="text-yellow-500 flex-shrink-0" title="Icon Player">⭐</span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-600">{player.role}</p>
+                          <p className="text-xs sm:text-sm text-gray-600">{player.role}</p>
                           <p className="text-xs text-gray-500">{player.category}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-green-600">
+                      <div className="text-left sm:text-right flex-shrink-0">
+                        <p className="text-base sm:text-lg font-bold text-green-600">
                           {formatCurrency(player.soldPrice)}
                         </p>
                         <p className="text-xs text-gray-500">Sold Price</p>
@@ -175,8 +168,8 @@ export default function TeamDetailPage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <p className="text-xl">No players in squad yet</p>
+                <div className="text-center py-8 sm:py-12 text-gray-500">
+                  <p className="text-lg sm:text-xl">No players in squad yet</p>
                 </div>
               )}
             </div>
