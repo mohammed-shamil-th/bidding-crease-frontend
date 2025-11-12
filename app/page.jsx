@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
 import UserHeader from '@/components/shared/UserHeader';
+import ImageViewerModal from '@/components/shared/ImageViewerModal';
 
 export default function HomePage() {
   const [tournaments, setTournaments] = useState([]);
