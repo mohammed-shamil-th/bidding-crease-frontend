@@ -96,6 +96,16 @@ export default function useAuctionSocket(tournamentId, onEvent = null) {
       );
     });
 
+    socketInstance.on('auction:cancelled', (data) => {
+      console.log('Auction cancelled event received:', data);
+      setCurrentPlayer(null);
+      setCurrentBidPrice(null);
+      setIsActive(false);
+      if (onEvent) {
+        onEvent({ type: 'cancelled', playerId: data.playerId });
+      }
+    });
+
     // Cleanup
     return () => {
       leaveAuction(tournamentId);

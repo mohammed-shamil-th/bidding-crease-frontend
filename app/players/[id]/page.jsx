@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { playerAPI } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import Link from 'next/link';
 import UserHeader from '@/components/shared/UserHeader';
 
@@ -12,6 +13,7 @@ export default function PlayerDetailPage() {
   const params = useParams();
   const [player, setPlayer] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showImageViewer, setShowImageViewer] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -73,7 +75,12 @@ export default function PlayerDetailPage() {
           <div className="lg:col-span-1">
             <div className="bg-white shadow rounded-lg p-4 sm:p-6">
               <div className="flex justify-center mb-4 sm:mb-6">
-                <PlayerAvatar player={player} size="xl" />
+                <PlayerAvatar
+                  player={player}
+                  size="xl"
+                  clickable={!!player?.image}
+                  onClick={() => player?.image && setShowImageViewer(true)}
+                />
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Player Information</h2>
               <div className="space-y-3">
@@ -168,6 +175,13 @@ export default function PlayerDetailPage() {
           </div>
         </div>
       </main>
+
+      <ImageViewerModal
+        isOpen={showImageViewer}
+        onClose={() => setShowImageViewer(false)}
+        imageUrl={player?.image}
+        playerName={player?.name}
+      />
     </div>
   );
 }

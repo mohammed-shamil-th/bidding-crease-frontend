@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import Link from 'next/link';
@@ -12,6 +12,10 @@ import ConfirmationModal from '@/components/shared/ConfirmationModal';
 import Pagination from '@/components/shared/Pagination';
 import SearchInput from '@/components/shared/SearchInput';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import ImageViewerModal from '@/components/shared/ImageViewerModal';
+import EmptyState from '@/components/shared/EmptyState';
+import TableSkeleton from '@/components/shared/TableSkeleton';
+import ImageCropModal from '@/components/shared/ImageCropModal';
 import { formatCurrency, debounce } from '@/lib/utils';
 
 // Validation schema
@@ -66,6 +70,10 @@ export default function PlayersPage() {
   const [submitError, setSubmitError] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, name: '' });
   const [teams, setTeams] = useState([]);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState(null);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -264,13 +272,22 @@ export default function PlayersPage() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+      setImageToCrop(file);
+      setShowCropModal(true);
+      // Reset file input
+      e.target.value = '';
     }
+  };
+
+  const handleCropComplete = (croppedFile) => {
+    setImageFile(croppedFile);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(croppedFile);
+    setShowCropModal(false);
+    setImageToCrop(null);
   };
 
   const handleCloseModal = () => {
@@ -282,9 +299,73 @@ export default function PlayersPage() {
     formik.resetForm();
   };
 
-  if (loading) {
-    return <div className="text-center py-8">Loading...</div>;
-  }
+  // Memoized table rows to prevent re-rendering on search
+  const TableRows = memo(({ players, onEdit, onDelete, onImageClick }) => {
+    return (
+      <>
+        {players.map((player) => (
+          <tr key={player._id}>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <PlayerAvatar
+                player={player}
+                size="sm"
+                clickable={!!player.image}
+                onClick={() => player.image && onImageClick(player.image, player.name)}
+              />
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+              <Link href={`/admin/players/${player._id}`} className="text-primary-600 hover:text-primary-900">
+                {player.name}
+              </Link>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              {player.role}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <div className="flex items-center space-x-1">
+                {player.category === 'Icon' && (
+                  <span className="text-yellow-500" title="Icon Player">⭐</span>
+                )}
+                <span>{player.category}</span>
+              </div>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              {formatCurrency(player.basePrice)}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              {player.soldPrice ? formatCurrency(player.soldPrice) : '-'}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              {player.soldTo?.name ? (
+                <Link href={`/admin/teams/${player.soldTo._id || player.soldTo}`} className="text-primary-600 hover:text-primary-900">
+                  {player.soldTo.name}
+                </Link>
+              ) : (
+                '-'
+              )}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+              <button
+                onClick={() => onEdit(player)}
+                className="text-primary-600 hover:text-primary-900"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => onDelete(player._id, player.name)}
+                className="text-red-600 hover:text-red-900"
+                disabled={player.soldPrice !== null}
+              >
+                Delete
+              </button>
+            </td>
+          </tr>
+        ))}
+      </>
+    );
+  });
+
+  TableRows.displayName = 'TableRows';
 
   return (
     <div>
@@ -364,63 +445,28 @@ export default function PlayersPage() {
       </div>
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
-        <Table
-          headers={['Image', 'Name', 'Role', 'Category', 'Base Price', 'Sold Price', 'Team', 'Actions']}
-        >
-          {players.map((player) => (
-            <tr key={player._id}>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <PlayerAvatar player={player} size="sm" />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                <Link href={`/admin/players/${player._id}`} className="text-primary-600 hover:text-primary-900">
-                {player.name}
-                </Link>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {player.role}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                <div className="flex items-center space-x-1">
-                  {player.category === 'Icon' && (
-                    <span className="text-yellow-500" title="Icon Player">⭐</span>
-                  )}
-                  <span>{player.category}</span>
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {formatCurrency(player.basePrice)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {player.soldPrice ? formatCurrency(player.soldPrice) : '-'}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {player.soldTo?.name ? (
-                  <Link href={`/admin/teams/${player.soldTo._id || player.soldTo}`} className="text-primary-600 hover:text-primary-900">
-                    {player.soldTo.name}
-                  </Link>
-                ) : (
-                  '-'
-                )}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                <button
-                  onClick={() => handleEdit(player)}
-                  className="text-primary-600 hover:text-primary-900"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(player._id, player.name)}
-                  className="text-red-600 hover:text-red-900"
-                  disabled={player.soldPrice !== null}
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </Table>
+        {loading ? (
+          <TableSkeleton rows={5} columns={8} />
+        ) : players.length === 0 ? (
+          <EmptyState
+            title="No players found"
+            message="Try adjusting your filters or add a new player"
+          />
+        ) : (
+          <Table
+            headers={['Image', 'Name', 'Role', 'Category', 'Base Price', 'Sold Price', 'Team', 'Actions']}
+          >
+            <TableRows
+              players={players}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onImageClick={(url, name) => {
+                setSelectedPlayerImage({ url, name });
+                setShowImageViewer(true);
+              }}
+            />
+          </Table>
+        )}
       </div>
 
       <Pagination
@@ -475,13 +521,36 @@ export default function PlayersPage() {
               className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
             />
             {imagePreview && (
-              <img
-                src={imagePreview}
-                alt="Preview"
-                className="mt-2 h-20 w-20 object-cover rounded"
-              />
+              <div className="mt-2">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="h-20 w-20 object-cover rounded"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImageFile(null);
+                    setImagePreview('');
+                  }}
+                  className="mt-2 text-sm text-red-600 hover:text-red-800"
+                >
+                  Remove
+                </button>
+              </div>
             )}
           </div>
+
+          <ImageCropModal
+            isOpen={showCropModal}
+            onClose={() => {
+              setShowCropModal(false);
+              setImageToCrop(null);
+            }}
+            imageFile={imageToCrop}
+            onCropComplete={handleCropComplete}
+            aspectRatio={1}
+          />
 
           <FormInput
             label="Name"
@@ -662,6 +731,13 @@ export default function PlayersPage() {
         confirmText="Delete"
         cancelText="Cancel"
         type="danger"
+      />
+
+      <ImageViewerModal
+        isOpen={showImageViewer}
+        onClose={() => setShowImageViewer(false)}
+        imageUrl={selectedPlayerImage.url}
+        playerName={selectedPlayerImage.name}
       />
     </div>
   );

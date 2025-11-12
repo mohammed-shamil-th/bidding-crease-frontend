@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { playerAPI, tournamentAPI, teamAPI } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import Link from 'next/link';
 import Modal from '@/components/shared/Modal';
 import FormInput from '@/components/shared/FormInput';
@@ -54,6 +55,7 @@ export default function PlayerDetailPage() {
   const [imagePreview, setImagePreview] = useState('');
   const [tournaments, setTournaments] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [showImageViewer, setShowImageViewer] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -245,7 +247,12 @@ export default function PlayerDetailPage() {
         <div className="lg:col-span-1">
           <div className="bg-white shadow rounded-lg p-6">
             <div className="flex justify-center mb-6">
-              <PlayerAvatar player={player} size="xl" />
+              <PlayerAvatar
+                player={player}
+                size="xl"
+                clickable={!!player?.image}
+                onClick={() => player?.image && setShowImageViewer(true)}
+              />
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-4">Player Information</h2>
             <div className="space-y-3">
@@ -579,6 +586,13 @@ export default function PlayerDetailPage() {
           </div>
         </form>
       </Modal>
+
+      <ImageViewerModal
+        isOpen={showImageViewer}
+        onClose={() => setShowImageViewer(false)}
+        imageUrl={player?.image}
+        playerName={player?.name}
+      />
     </div>
   );
 }

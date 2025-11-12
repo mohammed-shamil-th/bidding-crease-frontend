@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { teamAPI, playerAPI, tournamentAPI } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import Modal from '@/components/shared/Modal';
 import FormInput from '@/components/shared/FormInput';
 import Link from 'next/link';
@@ -17,6 +18,8 @@ export default function TeamDetailPage() {
   const [soldEditModal, setSoldEditModal] = useState({ isOpen: false, player: null });
   const [teams, setTeams] = useState([]);
   const [submitError, setSubmitError] = useState('');
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
 
   useEffect(() => {
     if (params.id) {
@@ -176,7 +179,17 @@ export default function TeamDetailPage() {
                     className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
                   >
                     <div className="flex items-center space-x-4">
-                      <PlayerAvatar player={player} size="md" />
+                      <PlayerAvatar
+                        player={player}
+                        size="md"
+                        clickable={!!player.image}
+                        onClick={() => {
+                          if (player.image) {
+                            setSelectedPlayerImage({ url: player.image, name: player.name });
+                            setShowImageViewer(true);
+                          }
+                        }}
+                      />
                       <div>
                         <div className="flex items-center space-x-2">
                           <p className="text-lg font-bold text-gray-900">{player.name}</p>
@@ -236,6 +249,13 @@ export default function TeamDetailPage() {
           />
         )}
       </Modal>
+
+      <ImageViewerModal
+        isOpen={showImageViewer}
+        onClose={() => setShowImageViewer(false)}
+        imageUrl={selectedPlayerImage.url}
+        playerName={selectedPlayerImage.name}
+      />
     </div>
   );
 }

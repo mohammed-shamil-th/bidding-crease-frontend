@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { tournamentAPI, teamAPI, playerAPI } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
+import CardSkeleton from '@/components/shared/CardSkeleton';
+import Loader from '@/components/shared/Loader';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -17,20 +19,27 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        // Fetch all data without pagination limits to get accurate totals
         const [tournamentsRes, teamsRes, playersRes] = await Promise.all([
-          tournamentAPI.getAll(),
-          teamAPI.getAll(),
-          playerAPI.getAll({ unsold: 'false' }),
+          tournamentAPI.getAll({ limit: 1000 }),
+          teamAPI.getAll({ limit: 1000 }),
+          playerAPI.getAll({ limit: 1000 }),
         ]);
 
-        const soldPlayers = playersRes.data.data.filter(
+        // Calculate totals from response
+        const tournamentsTotal = tournamentsRes.data.total || 0;
+        const teamsTotal = teamsRes.data.total || 0;
+        const playersTotal = playersRes.data.total || 0;
+        
+        // Count sold players from the data
+        const soldPlayers = (playersRes.data.data || []).filter(
           (p) => p.soldPrice !== null && p.soldTo !== null
         );
 
         setStats({
-          tournaments: tournamentsRes.data.count || 0,
-          teams: teamsRes.data.count || 0,
-          players: playersRes.data.count || 0,
+          tournaments: tournamentsTotal,
+          teams: teamsTotal,
+          players: playersTotal,
           soldPlayers: soldPlayers.length,
         });
       } catch (error) {
@@ -45,8 +54,14 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-xl">Loading...</div>
+      <div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Overview of your auction platform
+          </p>
+        </div>
+        <CardSkeleton count={4} />
       </div>
     );
   }

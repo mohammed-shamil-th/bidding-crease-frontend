@@ -13,9 +13,13 @@ export default function HomePage() {
   const [selectedTournament, setSelectedTournament] = useState('');
   const [teams, setTeams] = useState([]);
   const [lastPlayers, setLastPlayers] = useState([]);
+  const [lastPlayersLimit, setLastPlayersLimit] = useState(5);
+  const [hasMorePlayers, setHasMorePlayers] = useState(false);
   const [currentBidTeam, setCurrentBidTeam] = useState(null);
   const [notification, setNotification] = useState(null);
   const [maxBids, setMaxBids] = useState({});
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
 
   const {
     currentPlayer,
@@ -114,35 +118,49 @@ export default function HomePage() {
     }
   };
 
-  const fetchLastPlayers = async () => {
+  const fetchLastPlayers = async (limit = lastPlayersLimit) => {
     if (!selectedTournament) return;
     try {
-      // Get last 5 sold players first
+      // Get sold players first (with higher limit to check if there are more)
       const soldResponse = await playerAPI.getAll({
         tournamentId: selectedTournament,
         sold: 'true',
-        limit: 5,
+        limit: limit + 1, // Fetch one more to check if there are more
         sortBy: 'updatedAt',
         sortOrder: 'desc',
       });
       
-      // If we have less than 5 sold players, get unsold ones too
-      let recentPlayers = soldResponse.data.data || [];
-      if (recentPlayers.length < 5) {
-        const unsoldResponse = await playerAPI.getAll({
-          tournamentId: selectedTournament,
-          unsold: 'true',
-          limit: 5 - recentPlayers.length,
-          sortBy: 'updatedAt',
-          sortOrder: 'desc',
-        });
-        recentPlayers = [...recentPlayers, ...(unsoldResponse.data.data || [])].slice(0, 5);
-      }
+      // Get unsold players as well
+      const unsoldResponse = await playerAPI.getAll({
+        tournamentId: selectedTournament,
+        unsold: 'true',
+        limit: limit + 1,
+        sortBy: 'updatedAt',
+        sortOrder: 'desc',
+      });
       
-      setLastPlayers(recentPlayers);
+      const soldPlayers = soldResponse.data.data || [];
+      const unsoldPlayers = unsoldResponse.data.data || [];
+      
+      // Combine and sort by updatedAt
+      const allRecent = [...soldPlayers, ...unsoldPlayers]
+        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+        .slice(0, limit);
+      
+      // Check if there are more players available
+      const totalAvailable = soldPlayers.length + unsoldPlayers.length;
+      setHasMorePlayers(totalAvailable > limit || soldResponse.data.total > limit || unsoldResponse.data.total > limit);
+      
+      setLastPlayers(allRecent);
     } catch (error) {
       console.error('Error fetching last players:', error);
     }
+  };
+
+  const handleSeeMore = () => {
+    const newLimit = lastPlayersLimit + 10;
+    setLastPlayersLimit(newLimit);
+    fetchLastPlayers(newLimit);
   };
 
   const fetchCurrentAuction = async () => {
@@ -208,7 +226,17 @@ export default function HomePage() {
               {currentPlayer ? (
                 <div className="space-y-4">
                   <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
-                    <PlayerAvatar player={currentPlayer} size="xl" />
+                    <PlayerAvatar
+                      player={currentPlayer}
+                      size="xl"
+                      clickable={!!currentPlayer?.image}
+                      onClick={() => {
+                        if (currentPlayer?.image) {
+                          setSelectedPlayerImage({ url: currentPlayer.image, name: currentPlayer.name });
+                          setShowImageViewer(true);
+                        }
+                      }}
+                    />
                     <div className="flex-1 text-center sm:text-left">
                       <div className="flex items-center justify-center sm:justify-start space-x-2">
                         <Link href={`/players/${currentPlayer._id}`} className="text-2xl sm:text-3xl font-bold text-gray-900 hover:text-primary-600 break-words">
@@ -285,10 +313,12 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* Last 5 Players */}
+              {/* Recent Players */}
               {lastPlayers.length > 0 && (
                 <div className="mt-6 border-t pt-4">
-                  <h3 className="text-lg font-bold text-gray-900 mb-3">Recent Players</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-bold text-gray-900">Recent Players</h3>
+                  </div>
                   <div className="space-y-2">
                     {lastPlayers.map((player) => (
                       <div
@@ -296,10 +326,22 @@ export default function HomePage() {
                         className="flex items-center justify-between p-2 bg-gray-50 rounded-md"
                       >
                         <div className="flex items-center space-x-3">
-                          <PlayerAvatar player={player} size="sm" />
+                          <PlayerAvatar
+                            player={player}
+                            size="sm"
+                            clickable={!!player.image}
+                            onClick={() => {
+                              if (player.image) {
+                                setSelectedPlayerImage({ url: player.image, name: player.name });
+                                setShowImageViewer(true);
+                              }
+                            }}
+                          />
                           <div>
                             <div className="flex items-center space-x-1">
-                              <p className="text-sm font-medium text-gray-900">{player.name}</p>
+                              <Link href={`/players/${player._id}`} className="text-sm font-medium text-gray-900 hover:text-primary-600">
+                                {player.name}
+                              </Link>
                               {player.category === 'Icon' && (
                                 <span className="text-yellow-500" title="Icon Player">⭐</span>
                               )}
@@ -324,6 +366,14 @@ export default function HomePage() {
                       </div>
                     ))}
                   </div>
+                  {hasMorePlayers && (
+                    <button
+                      onClick={handleSeeMore}
+                      className="mt-3 text-sm text-primary-600 hover:text-primary-800 font-medium"
+                    >
+                      See More (Load 10 more)
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -359,6 +409,13 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+
+      <ImageViewerModal
+        isOpen={showImageViewer}
+        onClose={() => setShowImageViewer(false)}
+        imageUrl={selectedPlayerImage.url}
+        playerName={selectedPlayerImage.name}
+      />
     </div>
   );
 }

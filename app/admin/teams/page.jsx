@@ -3,12 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import Link from 'next/link';
 import { teamAPI, tournamentAPI } from '@/lib/api';
 import Table from '@/components/shared/Table';
 import Modal from '@/components/shared/Modal';
 import FormInput from '@/components/shared/FormInput';
 import ConfirmationModal from '@/components/shared/ConfirmationModal';
 import Pagination from '@/components/shared/Pagination';
+import EmptyState from '@/components/shared/EmptyState';
+import TableSkeleton from '@/components/shared/TableSkeleton';
+import ImageCropModal from '@/components/shared/ImageCropModal';
 import { formatCurrency } from '@/lib/utils';
 
 // Validation schema
@@ -40,6 +44,8 @@ export default function TeamsPage() {
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, name: '' });
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -166,13 +172,22 @@ export default function TeamsPage() {
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setLogoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+      setImageToCrop(file);
+      setShowCropModal(true);
+      // Reset file input
+      e.target.value = '';
     }
+  };
+
+  const handleCropComplete = (croppedFile) => {
+    setLogoFile(croppedFile);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoPreview(reader.result);
+    };
+    reader.readAsDataURL(croppedFile);
+    setShowCropModal(false);
+    setImageToCrop(null);
   };
 
   const handleEdit = (team) => {
@@ -213,9 +228,7 @@ export default function TeamsPage() {
     formik.resetForm();
   };
 
-  if (loading) {
-    return <div className="text-center py-8">Loading...</div>;
-  }
+  // Removed loading check - will show skeleton in table instead
 
   return (
     <div>
@@ -255,50 +268,61 @@ export default function TeamsPage() {
       </div>
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
-        <Table headers={['Name', 'Owner', 'Mobile', 'Budget', 'Remaining', 'Players', 'Actions']}>
-          {teams.map((team) => (
-            <tr key={team._id}>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {team.name}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {team.owner}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {team.mobile}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {formatCurrency(team.budget)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {formatCurrency(team.remainingAmount)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {team.players?.length || 0}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                <a
-                  href={`/admin/teams/${team._id}`}
-                  className="text-blue-600 hover:text-blue-900"
-                >
-                  View
-                </a>
-                <button
-                  onClick={() => handleEdit(team)}
-                  className="text-primary-600 hover:text-primary-900"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(team._id, team.name)}
-                  className="text-red-600 hover:text-red-900"
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </Table>
+        {loading ? (
+          <TableSkeleton rows={5} columns={7} />
+        ) : teams.length === 0 ? (
+          <EmptyState
+            title="No teams found"
+            message="Try adjusting your filters or add a new team"
+          />
+        ) : (
+          <Table headers={['Name', 'Owner', 'Mobile', 'Budget', 'Remaining', 'Players', 'Actions']}>
+            {teams.map((team) => (
+              <tr key={team._id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <Link href={`/admin/teams/${team._id}`} className="text-primary-600 hover:text-primary-900">
+                    {team.name}
+                  </Link>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {team.owner}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {team.mobile}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {formatCurrency(team.budget)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {formatCurrency(team.remainingAmount)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {team.players?.length || 0}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                  <Link
+                    href={`/admin/teams/${team._id}`}
+                    className="text-blue-600 hover:text-blue-900"
+                  >
+                    View
+                  </Link>
+                  <button
+                    onClick={() => handleEdit(team)}
+                    className="text-primary-600 hover:text-primary-900"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(team._id, team.name)}
+                    className="text-red-600 hover:text-red-900"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </Table>
+        )}
       </div>
 
       <Pagination
@@ -365,13 +389,36 @@ export default function TeamsPage() {
               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
             />
             {logoPreview && (
-              <img
-                src={logoPreview}
-                alt="Logo preview"
-                className="mt-2 h-20 w-20 object-cover rounded"
-              />
+              <div className="mt-2">
+                <img
+                  src={logoPreview}
+                  alt="Logo preview"
+                  className="h-20 w-20 object-cover rounded"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLogoFile(null);
+                    setLogoPreview('');
+                  }}
+                  className="mt-2 text-sm text-red-600 hover:text-red-800"
+                >
+                  Remove
+                </button>
+              </div>
             )}
           </div>
+
+          <ImageCropModal
+            isOpen={showCropModal}
+            onClose={() => {
+              setShowCropModal(false);
+              setImageToCrop(null);
+            }}
+            imageFile={imageToCrop}
+            onCropComplete={handleCropComplete}
+            aspectRatio={1}
+          />
 
           <FormInput
             label="Owner"

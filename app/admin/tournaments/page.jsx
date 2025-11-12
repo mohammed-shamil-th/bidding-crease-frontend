@@ -3,12 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import Link from 'next/link';
 import { tournamentAPI } from '@/lib/api';
 import Table from '@/components/shared/Table';
 import Modal from '@/components/shared/Modal';
 import FormInput from '@/components/shared/FormInput';
 import ConfirmationModal from '@/components/shared/ConfirmationModal';
 import Pagination from '@/components/shared/Pagination';
+import EmptyState from '@/components/shared/EmptyState';
+import TableSkeleton from '@/components/shared/TableSkeleton';
+import ImageCropModal from '@/components/shared/ImageCropModal';
 import { formatDate } from '@/lib/utils';
 
 // Validation schema
@@ -67,6 +71,8 @@ export default function TournamentsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, name: '' });
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState('');
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -168,13 +174,22 @@ export default function TournamentsPage() {
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setLogoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+      setImageToCrop(file);
+      setShowCropModal(true);
+      // Reset file input
+      e.target.value = '';
     }
+  };
+
+  const handleCropComplete = (croppedFile) => {
+    setLogoFile(croppedFile);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoPreview(reader.result);
+    };
+    reader.readAsDataURL(croppedFile);
+    setShowCropModal(false);
+    setImageToCrop(null);
   };
 
   const handleEdit = (tournament) => {
@@ -223,9 +238,7 @@ export default function TournamentsPage() {
     formik.resetForm();
   };
 
-  if (loading) {
-    return <div className="text-center py-8">Loading...</div>;
-  }
+  // Removed loading check - will show skeleton in table instead
 
   return (
     <div>
@@ -248,53 +261,64 @@ export default function TournamentsPage() {
       </div>
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
-        <Table
-          headers={['Name', 'Category', 'Location', 'Auction Date', 'Status', 'Actions']}
-        >
-          {tournaments.map((tournament) => (
-            <tr key={tournament._id}>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {tournament.name}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {tournament.category}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {tournament.location}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {formatDate(tournament.auctionDate)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span
-                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    tournament.status === 'ongoing'
-                      ? 'bg-green-100 text-green-800'
-                      : tournament.status === 'completed'
-                      ? 'bg-gray-100 text-gray-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}
-                >
-                  {tournament.status}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                <button
-                  onClick={() => handleEdit(tournament)}
-                  className="text-primary-600 hover:text-primary-900"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(tournament._id, tournament.name)}
-                  className="text-red-600 hover:text-red-900"
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </Table>
+        {loading ? (
+          <TableSkeleton rows={5} columns={6} />
+        ) : tournaments.length === 0 ? (
+          <EmptyState
+            title="No tournaments found"
+            message="Create your first tournament to get started"
+          />
+        ) : (
+          <Table
+            headers={['Name', 'Category', 'Location', 'Auction Date', 'Status', 'Actions']}
+          >
+            {tournaments.map((tournament) => (
+              <tr key={tournament._id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <Link href={`/admin/tournaments/${tournament._id}`} className="text-primary-600 hover:text-primary-900">
+                    {tournament.name}
+                  </Link>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {tournament.category}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {tournament.location}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {formatDate(tournament.auctionDate)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      tournament.status === 'ongoing'
+                        ? 'bg-green-100 text-green-800'
+                        : tournament.status === 'completed'
+                        ? 'bg-gray-100 text-gray-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}
+                  >
+                    {tournament.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                  <button
+                    onClick={() => handleEdit(tournament)}
+                    className="text-primary-600 hover:text-primary-900"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(tournament._id, tournament.name)}
+                    className="text-red-600 hover:text-red-900"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </Table>
+        )}
       </div>
 
       <Pagination
@@ -342,13 +366,36 @@ export default function TournamentsPage() {
               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
             />
             {logoPreview && (
-              <img
-                src={logoPreview}
-                alt="Logo preview"
-                className="mt-2 h-20 w-20 object-cover rounded"
-              />
+              <div className="mt-2">
+                <img
+                  src={logoPreview}
+                  alt="Logo preview"
+                  className="h-20 w-20 object-cover rounded"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLogoFile(null);
+                    setLogoPreview('');
+                  }}
+                  className="mt-2 text-sm text-red-600 hover:text-red-800"
+                >
+                  Remove
+                </button>
+              </div>
             )}
           </div>
+
+          <ImageCropModal
+            isOpen={showCropModal}
+            onClose={() => {
+              setShowCropModal(false);
+              setImageToCrop(null);
+            }}
+            imageFile={imageToCrop}
+            onCropComplete={handleCropComplete}
+            aspectRatio={1}
+          />
 
           <FormInput
             label="Category"

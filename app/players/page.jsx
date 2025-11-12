@@ -5,9 +5,12 @@ import { playerAPI, tournamentAPI } from '@/lib/api';
 import { formatCurrency, debounce } from '@/lib/utils';
 import Link from 'next/link';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import Pagination from '@/components/shared/Pagination';
 import SearchInput from '@/components/shared/SearchInput';
 import UserHeader from '@/components/shared/UserHeader';
+import EmptyState from '@/components/shared/EmptyState';
+import PlayerCardSkeleton from '@/components/shared/PlayerCardSkeleton';
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState([]);
@@ -20,6 +23,8 @@ export default function PlayersPage() {
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -96,20 +101,8 @@ export default function PlayersPage() {
     fetchPlayers(1, newLimit);
   };
 
-  // Filter players by search query on client side if backend doesn't support it
-  const filteredPlayers = searchQuery
-    ? players.filter((player) =>
-        player.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : players;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
-  }
+  // Backend handles search, so we use players directly
+  const filteredPlayers = players;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -179,48 +172,72 @@ export default function PlayersPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-          {filteredPlayers.map((player) => (
-            <Link key={player._id} href={`/players/${player._id}`} className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="flex justify-center items-center bg-gray-100 h-40 sm:h-48">
-                <PlayerAvatar player={player} size="xl" />
-              </div>
-              <div className="p-3 sm:p-4">
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate">{player.name}</h3>
-                  {player.category === 'Icon' && (
-                    <span className="text-yellow-500 flex-shrink-0" title="Icon Player">⭐</span>
-                  )}
+        {loading ? (
+          <PlayerCardSkeleton count={8} />
+        ) : filteredPlayers.length === 0 ? (
+          <EmptyState
+            title="No players found"
+            message="Try adjusting your filters or check back later"
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            {filteredPlayers.map((player) => (
+              <Link key={player._id} href={`/players/${player._id}`} className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                <div
+                  className="flex justify-center items-center bg-gray-100 h-40 sm:h-48"
+                  onClick={(e) => {
+                    if (player.image) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedPlayerImage({ url: player.image, name: player.name });
+                      setShowImageViewer(true);
+                    }
+                  }}
+                >
+                  <PlayerAvatar
+                    player={player}
+                    size="xl"
+                    clickable={!!player.image}
+                    onClick={(e) => {
+                      if (player.image) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedPlayerImage({ url: player.image, name: player.name });
+                        setShowImageViewer(true);
+                      }
+                    }}
+                  />
                 </div>
-                <p className="text-xs sm:text-sm text-gray-600">{player.role}</p>
-                <p className="text-xs sm:text-sm text-gray-500">{player.category}</p>
-                <div className="mt-2">
-                  <p className="text-xs sm:text-sm text-gray-600">
-                    Base Price: {formatCurrency(player.basePrice)}
-                  </p>
-                  {player.soldPrice && (
-                    <p className="text-xs sm:text-sm font-bold text-green-600">
-                      Sold: {formatCurrency(player.soldPrice)}
+                <div className="p-3 sm:p-4">
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate">{player.name}</h3>
+                    {player.category === 'Icon' && (
+                      <span className="text-yellow-500 flex-shrink-0" title="Icon Player">⭐</span>
+                    )}
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-600">{player.role}</p>
+                  <p className="text-xs sm:text-sm text-gray-500">{player.category}</p>
+                  <div className="mt-2">
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      Base Price: {formatCurrency(player.basePrice)}
                     </p>
-                  )}
-                  {player.soldTo && (
-                    <p className="text-xs sm:text-sm text-gray-600 truncate">
-                      Team:{' '}
-                      <span className="text-primary-600 hover:text-primary-900">
-                        {player.soldTo.name}
-                      </span>
-                    </p>
-                  )}
+                    {player.soldPrice && (
+                      <p className="text-xs sm:text-sm font-bold text-green-600">
+                        Sold: {formatCurrency(player.soldPrice)}
+                      </p>
+                    )}
+                    {player.soldTo && (
+                      <p className="text-xs sm:text-sm text-gray-600 truncate">
+                        Team:{' '}
+                        <Link href={`/teams/${player.soldTo._id || player.soldTo}`} className="text-primary-600 hover:text-primary-900">
+                          {player.soldTo.name}
+                        </Link>
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        {filteredPlayers.length === 0 && !loading && (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-xl">No players found</p>
-            <p className="text-sm mt-2">Try adjusting your filters</p>
+              </Link>
+            ))}
           </div>
         )}
 
@@ -233,6 +250,13 @@ export default function PlayersPage() {
           totalItems={pagination.total}
         />
       </main>
+
+      <ImageViewerModal
+        isOpen={showImageViewer}
+        onClose={() => setShowImageViewer(false)}
+        imageUrl={selectedPlayerImage.url}
+        playerName={selectedPlayerImage.name}
+      />
     </div>
   );
 }

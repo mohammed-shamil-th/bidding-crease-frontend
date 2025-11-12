@@ -5,13 +5,18 @@ import { teamAPI, tournamentAPI, playerAPI } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import UserHeader from '@/components/shared/UserHeader';
+import EmptyState from '@/components/shared/EmptyState';
+import CardSkeleton from '@/components/shared/CardSkeleton';
 
 export default function TeamsPage() {
   const [teams, setTeams] = useState([]);
   const [tournaments, setTournaments] = useState([]);
   const [selectedTournament, setSelectedTournament] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
 
   useEffect(() => {
     fetchTournaments();
@@ -62,13 +67,7 @@ export default function TeamsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
-  }
+  // Removed loading check - will show skeleton instead
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -95,7 +94,16 @@ export default function TeamsPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          {teams.length > 0 ? (
+          {loading ? (
+            <CardSkeleton count={4} />
+          ) : teams.length === 0 ? (
+            <div className="lg:col-span-2">
+              <EmptyState
+                title="No teams found"
+                message="No teams available for this tournament"
+              />
+            </div>
+          ) : (
             teams.map((team) => (
               <div key={team._id} className="bg-white shadow rounded-lg p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -125,7 +133,30 @@ export default function TeamsPage() {
                       team.playersData.map((player) => (
                         <Link key={player._id} href={`/players/${player._id}`} className="flex items-center justify-between p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors">
                           <div className="flex items-center space-x-2 flex-1 min-w-0">
-                            <PlayerAvatar player={player} size="sm" />
+                            <div
+                              onClick={(e) => {
+                                if (player.image) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setSelectedPlayerImage({ url: player.image, name: player.name });
+                                  setShowImageViewer(true);
+                                }
+                              }}
+                            >
+                              <PlayerAvatar
+                                player={player}
+                                size="sm"
+                                clickable={!!player.image}
+                                onClick={(e) => {
+                                  if (player.image) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setSelectedPlayerImage({ url: player.image, name: player.name });
+                                    setShowImageViewer(true);
+                                  }
+                                }}
+                              />
+                            </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center space-x-1">
                                 <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">{player.name}</p>
@@ -148,14 +179,16 @@ export default function TeamsPage() {
                 </div>
               </div>
             ))
-          ) : (
-            <div className="col-span-full text-center py-12 text-gray-500">
-              <p className="text-lg">No teams found</p>
-              <p className="text-sm mt-2">Try selecting a different tournament</p>
-            </div>
           )}
         </div>
       </main>
+
+      <ImageViewerModal
+        isOpen={showImageViewer}
+        onClose={() => setShowImageViewer(false)}
+        imageUrl={selectedPlayerImage.url}
+        playerName={selectedPlayerImage.name}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-export default function PlayerAvatar({ player, size = 'md' }) {
+export default function PlayerAvatar({ player, size = 'md', clickable = false, onClick }) {
   const getInitials = (name) => {
     if (!name) return '??';
     const parts = name.trim().split(' ');
@@ -20,13 +20,23 @@ export default function PlayerAvatar({ player, size = 'md' }) {
   const sizeClass = sizeClasses[size] || sizeClasses.md;
 
   if (player?.image) {
-    return (
+    const imageElement = (
       <img
         src={player.image}
         alt={player.name || 'Player'}
-        className={`${sizeClass} rounded-full object-cover`}
+        className={`${sizeClass} rounded-full object-cover ${clickable ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
       />
     );
+
+    if (clickable && onClick) {
+      return (
+        <div onClick={onClick} className="inline-block">
+          {imageElement}
+        </div>
+      );
+    }
+
+    return imageElement;
   }
 
   const initials = getInitials(player?.name);
