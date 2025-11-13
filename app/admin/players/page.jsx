@@ -26,6 +26,7 @@ const playerSchema = Yup.object().shape({
   mobile: Yup.string()
     .required('Mobile is required')
     .matches(/^[0-9]{10,15}$/, 'Mobile must be 10-15 digits'),
+  location: Yup.string(),
   role: Yup.string()
     .oneOf(['Batter', 'Bowler', 'All-Rounder'], 'Invalid role')
     .required('Role is required'),
@@ -43,7 +44,7 @@ const playerSchema = Yup.object().shape({
     'Invalid bowling style'
   ),
   category: Yup.string()
-    .oneOf(['Icon', 'Guest', 'Local'], 'Invalid category')
+    .oneOf(['Icon', 'Regular'], 'Invalid category')
     .required('Category is required'),
   basePrice: Yup.number()
     .required('Base price is required')
@@ -85,10 +86,11 @@ export default function PlayersPage() {
     initialValues: {
     name: '',
     mobile: '',
+    location: '',
     role: 'Batter',
     battingStyle: '',
     bowlingStyle: '',
-    category: 'Local',
+    category: 'Regular',
     basePrice: '',
     tournamentId: '',
     },
@@ -240,10 +242,11 @@ export default function PlayersPage() {
       formik.setValues({
         name: player.name || '',
         mobile: player.mobile || '',
+        location: player.location || '',
         role: player.role || '',
         battingStyle: player.battingStyle || '',
         bowlingStyle: player.bowlingStyle || '',
-        category: player.category || 'Local',
+        category: player.category || 'Regular',
         basePrice: player.basePrice ? player.basePrice.toString() : '',
         tournamentId: player.tournamentId?._id || player.tournamentId || selectedTournament || '',
         // For sold players, allow editing sale details
@@ -317,6 +320,9 @@ export default function PlayersPage() {
               <Link href={`/admin/players/${player._id}`} className="text-primary-600 hover:text-primary-900">
                 {player.name}
               </Link>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              {player.location || '-'}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {player.role}
@@ -408,8 +414,7 @@ export default function PlayersPage() {
           >
             <option value="all">All Categories</option>
             <option value="Icon">Icon</option>
-            <option value="Local">Local</option>
-            <option value="Guest">Guest</option>
+            <option value="Regular">Regular</option>
           </select>
           <select
             value={`${sortBy}-${sortOrder}`}
@@ -446,7 +451,7 @@ export default function PlayersPage() {
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
         {loading ? (
-          <TableSkeleton rows={5} columns={8} />
+          <TableSkeleton rows={5} columns={9} />
         ) : players.length === 0 ? (
           <EmptyState
             title="No players found"
@@ -454,7 +459,7 @@ export default function PlayersPage() {
           />
         ) : (
           <Table
-            headers={['Image', 'Name', 'Role', 'Category', 'Base Price', 'Sold Price', 'Team', 'Actions']}
+            headers={['Image', 'Name', 'Location', 'Role', 'Category', 'Base Price', 'Sold Price', 'Team', 'Actions']}
           >
             <TableRows
               players={players}
@@ -578,6 +583,18 @@ export default function PlayersPage() {
             placeholder="10-15 digits"
           />
 
+            <FormInput
+            label="Location"
+            name="location"
+              type="text"
+            value={formik.values.location}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.errors.location}
+            touched={formik.touched.location}
+            placeholder="Enter location"
+          />
+
           <FormInput
             label="Role"
             name="role"
@@ -646,8 +663,7 @@ export default function PlayersPage() {
             touched={formik.touched.category}
             options={[
               { value: 'Icon', label: 'Icon' },
-              { value: 'Guest', label: 'Guest' },
-              { value: 'Local', label: 'Local' },
+              { value: 'Regular', label: 'Regular' },
             ]}
           />
 

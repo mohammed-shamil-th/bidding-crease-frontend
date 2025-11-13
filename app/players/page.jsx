@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { playerAPI, tournamentAPI } from '@/lib/api';
 import { formatCurrency, debounce } from '@/lib/utils';
 import Link from 'next/link';
-import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import Image from 'next/image';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import Pagination from '@/components/shared/Pagination';
 import SearchInput from '@/components/shared/SearchInput';
@@ -104,71 +104,167 @@ export default function PlayersPage() {
   // Backend handles search, so we use players directly
   const filteredPlayers = players;
 
+  // Check if any filters are active
+  const hasActiveFilters = selectedTournament || filter !== 'all' || categoryFilter !== 'all' || searchQuery;
+
+  // Reset all filters
+  const resetFilters = () => {
+    setSelectedTournament('');
+    setFilter('all');
+    setCategoryFilter('all');
+    setSearchInput('');
+    setSearchQuery('');
+    setSortBy('name');
+    setSortOrder('asc');
+  };
+
+  // Get role-based gradient colors
+  const getRoleGradient = (role) => {
+    switch (role) {
+      case 'All-Rounder':
+        return 'from-green-500 to-emerald-600';
+      case 'Bowler':
+        return 'from-blue-500 to-indigo-600';
+      case 'Batter':
+        return 'from-orange-500 to-red-600';
+      default:
+        return 'from-purple-500 to-pink-600';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <UserHeader />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        <div className="mb-6 sm:mb-8">
-          <div className="mb-4 sm:mb-6">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Players</h1>
-            <p className="mt-2 text-sm text-gray-600">View all players</p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Header Section */}
+        <div className="mb-8">
+          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">Players</h1>
+          <p className="text-base sm:text-lg text-gray-600">View and explore all players</p>
+        </div>
+
+        {/* Filters Section */}
+        <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search Bar */}
             <div className="flex-1 min-w-0">
-              <SearchInput
-                value={searchInput}
-                onChange={setSearchInput}
-                placeholder="Search players..."
-              />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Search players..."
+                  className="block w-full pl-10 pr-3 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-              <select
-                value={selectedTournament}
-                onChange={(e) => setSelectedTournament(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="">All Tournaments</option>
-                {tournaments.map((tournament) => (
-                  <option key={tournament._id} value={tournament._id}>
-                    {tournament.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="all">All Players</option>
-                <option value="sold">Sold</option>
-                <option value="unsold">Unsold</option>
-              </select>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="all">All Categories</option>
-                <option value="Icon">Icon</option>
-                <option value="Local">Local</option>
-                <option value="Guest">Guest</option>
-              </select>
-              <select
-                value={`${sortBy}-${sortOrder}`}
-                onChange={(e) => {
-                  const [by, order] = e.target.value.split('-');
-                  setSortBy(by);
-                  setSortOrder(order);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-900 bg-white focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="name-asc">Name (A-Z)</option>
-                <option value="name-desc">Name (Z-A)</option>
-                <option value="createdAt-desc">Newest First</option>
-                <option value="createdAt-asc">Oldest First</option>
-              </select>
+
+            {/* Filter Dropdowns */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                <select
+                  value={selectedTournament}
+                  onChange={(e) => setSelectedTournament(e.target.value)}
+                  className="w-full pl-9 pr-3 py-3 border-2 border-gray-200 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none cursor-pointer transition-all"
+                >
+                  <option value="">All Tournaments</option>
+                  {tournaments.map((tournament) => (
+                    <option key={tournament._id} value={tournament._id}>
+                      {tournament.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                <select
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  className="w-full pl-9 pr-3 py-3 border-2 border-gray-200 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none cursor-pointer transition-all"
+                >
+                  <option value="all">All Players</option>
+                  <option value="sold">Sold</option>
+                  <option value="unsold">Unsold</option>
+                </select>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="w-full pl-9 pr-3 py-3 border-2 border-gray-200 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none cursor-pointer transition-all"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="Icon">Icon</option>
+                  <option value="Regular">Regular</option>
+                </select>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                <select
+                  value={`${sortBy}-${sortOrder}`}
+                  onChange={(e) => {
+                    const [by, order] = e.target.value.split('-');
+                    setSortBy(by);
+                    setSortOrder(order);
+                  }}
+                  className="w-full pl-9 pr-3 py-3 border-2 border-gray-200 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none cursor-pointer transition-all"
+                >
+                  <option value="name-asc">Name (A-Z)</option>
+                  <option value="name-desc">Name (Z-A)</option>
+                  <option value="createdAt-desc">Newest First</option>
+                  <option value="createdAt-asc">Oldest First</option>
+                </select>
+              </div>
             </div>
+          </div>
+
+          {/* Filter Info & Reset */}
+          <div className="mt-4 pt-4 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="text-sm text-gray-600">
+              Showing <span className="font-semibold text-gray-900">{pagination.total}</span> player{pagination.total !== 1 ? 's' : ''}
+              {hasActiveFilters && (
+                <span className="ml-2 px-2 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-medium">
+                  Filtered
+                </span>
+              )}
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={resetFilters}
+                className="text-sm font-medium text-primary-600 hover:text-primary-800 flex items-center gap-1.5 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Reset Filters
+              </button>
+            )}
           </div>
         </div>
 
@@ -181,23 +277,29 @@ export default function PlayersPage() {
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-            {filteredPlayers.map((player) => (
-              <Link key={player._id} href={`/players/${player._id}`} className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                <div
-                  className="flex justify-center items-center bg-gray-100 h-40 sm:h-48"
-                  onClick={(e) => {
-                    if (player.image) {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setSelectedPlayerImage({ url: player.image, name: player.name });
-                      setShowImageViewer(true);
-                    }
-                  }}
+            {filteredPlayers.map((player, index) => {
+              const getInitials = (name) => {
+                if (!name) return '??';
+                const parts = name.trim().split(' ');
+                if (parts.length >= 2) {
+                  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                }
+                return name.substring(0, 2).toUpperCase();
+              };
+
+              const initials = getInitials(player?.name);
+              const roleGradient = getRoleGradient(player?.role);
+
+              return (
+                <Link
+                  key={player._id}
+                  href={`/players/${player._id}`}
+                  className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden transform hover:scale-[1.02]"
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <PlayerAvatar
-                    player={player}
-                    size="xl"
-                    clickable={!!player.image}
+                  {/* Player Image/Initials Section */}
+                  <div
+                    className="w-full h-48 sm:h-52 overflow-hidden bg-gray-100 relative"
                     onClick={(e) => {
                       if (player.image) {
                         e.preventDefault();
@@ -206,38 +308,107 @@ export default function PlayersPage() {
                         setShowImageViewer(true);
                       }
                     }}
-                  />
-                </div>
-                <div className="p-3 sm:p-4">
-                  <div className="flex items-center space-x-2">
-                    <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate">{player.name}</h3>
-                    {player.category === 'Icon' && (
-                      <span className="text-yellow-500 flex-shrink-0" title="Icon Player">⭐</span>
+                  >
+                    {player.image ? (
+                      <Image
+                        src={player.image}
+                        alt={player.name}
+                        fill
+                        className="object-cover cursor-pointer group-hover:scale-110 transition-transform duration-300"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                      />
+                    ) : (
+                      <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${roleGradient} relative`}>
+                        <span className="text-white text-4xl sm:text-5xl font-bold drop-shadow-lg">
+                          {initials}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* SOLD Badge */}
+                    {player.soldPrice && player.soldTo && (
+                      <div className="absolute top-3 right-3 px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold rounded-full shadow-lg flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        SOLD
+                      </div>
                     )}
                   </div>
-                  <p className="text-xs sm:text-sm text-gray-600">{player.role}</p>
-                  <p className="text-xs sm:text-sm text-gray-500">{player.category}</p>
-                  <div className="mt-2">
-                    <p className="text-xs sm:text-sm text-gray-600">
-                      Base Price: {formatCurrency(player.basePrice)}
-                    </p>
-                    {player.soldPrice && (
-                      <p className="text-xs sm:text-sm font-bold text-green-600">
-                        Sold: {formatCurrency(player.soldPrice)}
-                      </p>
+
+                  {/* Player Details Section */}
+                  <div className="p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate group-hover:text-primary-600 transition-colors">
+                            {player.name}
+                          </h3>
+                          {player.category === 'Icon' && (
+                            <span className="text-yellow-500 flex-shrink-0 text-lg" title="Icon Player">⭐</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
+                            {player.role}
+                          </span>
+                          <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-primary-50 text-primary-700">
+                            {player.category}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {player.location && (
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <p className="text-xs text-gray-500 truncate">{player.location}</p>
+                      </div>
                     )}
-                    {player.soldTo && (
-                      <p className="text-xs sm:text-sm text-gray-600 truncate">
-                        Team:{' '}
-                        <Link href={`/teams/${player.soldTo._id || player.soldTo}`} className="text-primary-600 hover:text-primary-900">
-                          {player.soldTo.name}
-                        </Link>
-                      </p>
-                    )}
+
+                    <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600 font-medium">Base Price</span>
+                        <span className="text-sm font-bold text-gray-700">
+                          {formatCurrency(player.basePrice)}
+                        </span>
+                      </div>
+                      {player.soldPrice ? (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-600 font-medium">Sold Price</span>
+                            <span className="text-base font-bold text-primary-600">
+                              {formatCurrency(player.soldPrice)}
+                            </span>
+                          </div>
+                          {player.soldTo && (
+                            <div className="pt-2">
+                              <Link
+                                href={`/teams/${player.soldTo._id || player.soldTo}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-xs text-primary-600 hover:text-primary-800 font-medium italic flex items-center gap-1 transition-colors"
+                              >
+                                <span>→</span>
+                                {player.soldTo.name}
+                              </Link>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="pt-1">
+                          <span className="inline-block px-2.5 py-1 text-xs font-semibold text-gray-600 bg-gray-100 rounded-full">
+                            Unsold
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         )}
 

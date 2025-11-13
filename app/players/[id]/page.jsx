@@ -88,6 +88,12 @@ export default function PlayerDetailPage() {
                   <p className="text-xs sm:text-sm text-gray-600">Name</p>
                   <p className="text-base sm:text-lg font-medium text-gray-900">{player.name}</p>
                 </div>
+                {player.location && (
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600">Location</p>
+                    <p className="text-base sm:text-lg font-medium text-gray-900">{player.location}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-xs sm:text-sm text-gray-600">Role</p>
                   <p className="text-base sm:text-lg font-medium text-gray-900">{player.role}</p>

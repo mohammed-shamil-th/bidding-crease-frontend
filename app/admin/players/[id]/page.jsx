@@ -19,6 +19,7 @@ const playerSchema = Yup.object().shape({
   mobile: Yup.string()
     .required('Mobile is required')
     .matches(/^[0-9]{10,15}$/, 'Mobile must be 10-15 digits'),
+  location: Yup.string(),
   role: Yup.string()
     .oneOf(['Batter', 'Bowler', 'All-Rounder'], 'Invalid role')
     .required('Role is required'),
@@ -36,7 +37,7 @@ const playerSchema = Yup.object().shape({
     'Invalid bowling style'
   ),
   category: Yup.string()
-    .oneOf(['Icon', 'Guest', 'Local'], 'Invalid category')
+    .oneOf(['Icon', 'Regular'], 'Invalid category')
     .required('Category is required'),
   basePrice: Yup.number()
     .required('Base price is required')
@@ -109,6 +110,7 @@ export default function PlayerDetailPage() {
     initialValues: {
       name: '',
       mobile: '',
+      location: '',
       role: '',
       battingStyle: '',
       bowlingStyle: '',
@@ -176,6 +178,7 @@ export default function PlayerDetailPage() {
         formik.setValues({
           name: player.name || '',
           mobile: player.mobile || '',
+          location: player.location || '',
           role: player.role || '',
           battingStyle: player.battingStyle || '',
           bowlingStyle: player.bowlingStyle || '',
@@ -264,6 +267,12 @@ export default function PlayerDetailPage() {
                 <p className="text-sm text-gray-600">Mobile</p>
                 <p className="text-lg font-medium text-gray-900">{player.mobile}</p>
               </div>
+              {player.location && (
+                <div>
+                  <p className="text-sm text-gray-600">Location</p>
+                  <p className="text-lg font-medium text-gray-900">{player.location}</p>
+                </div>
+              )}
               <div>
                 <p className="text-sm text-gray-600">Role</p>
                 <p className="text-lg font-medium text-gray-900">{player.role}</p>
@@ -436,6 +445,18 @@ export default function PlayerDetailPage() {
           />
 
           <FormInput
+            label="Location"
+            name="location"
+            type="text"
+            value={formik.values.location}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.errors.location}
+            touched={formik.touched.location}
+            placeholder="Enter location"
+          />
+
+          <FormInput
             label="Role"
             name="role"
             type="select"
@@ -505,8 +526,7 @@ export default function PlayerDetailPage() {
             options={[
               { value: '', label: 'Select Category' },
               { value: 'Icon', label: 'Icon' },
-              { value: 'Guest', label: 'Guest' },
-              { value: 'Local', label: 'Local' },
+              { value: 'Regular', label: 'Regular' },
             ]}
           />
 
