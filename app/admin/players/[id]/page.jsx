@@ -259,6 +259,12 @@ export default function PlayerDetailPage() {
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-4">Player Information</h2>
             <div className="space-y-3">
+              {player.playerNumber && (
+                <div>
+                  <p className="text-sm text-gray-600">Player Number</p>
+                  <p className="text-lg font-medium text-gray-900">#{player.playerNumber}</p>
+                </div>
+              )}
               <div>
                 <p className="text-sm text-gray-600">Name</p>
                 <p className="text-lg font-medium text-gray-900">{player.name}</p>
