@@ -10,6 +10,14 @@ import PlayerAvatar from '@/components/shared/PlayerAvatar';
 import UserHeader from '@/components/shared/UserHeader';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
 
+// Helper to format currency with negative styling
+const formatCurrencyWithNegative = (amount) => {
+  if (amount < 0) {
+    return <span className="text-red-600 font-semibold">-{formatCurrency(Math.abs(amount))}</span>;
+  }
+  return formatCurrency(amount);
+};
+
 export default function HomePage() {
   const [tournaments, setTournaments] = useState([]);
   const [selectedTournament, setSelectedTournament] = useState('');
@@ -151,6 +159,10 @@ export default function HomePage() {
     fetchLastPlayers(newLimit);
   };
 
+  const selectedTournamentData = selectedTournament
+    ? tournaments.find((t) => t._id === selectedTournament)
+    : null;
+
   const fetchCurrentAuction = async () => {
     try {
       const response = await auctionAPI.getCurrent(selectedTournament);
@@ -186,34 +198,31 @@ export default function HomePage() {
               <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
                 Select Tournament
               </label>
-              {selectedTournament ? (() => {
-                const selectedTournamentData = tournaments.find(t => t._id === selectedTournament);
-                return (
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="flex items-center gap-3">
-                      {selectedTournamentData?.logo ? (
-                        <div className="relative w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
-                          <Image
-                            src={selectedTournamentData.logo}
-                            alt={selectedTournamentData.name || 'Tournament Logo'}
-                            fill
-                            className="object-contain rounded-lg"
-                            sizes="(max-width: 640px) 48px, 56px"
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-2xl sm:text-3xl flex-shrink-0">🏆</span>
-                      )}
-                      <h3 className="text-2xl sm:text-3xl font-bold text-primary-700">
-                        {selectedTournamentData?.name || 'Tournament'}
-                      </h3>
-                    </div>
-                    <span className="px-3 py-1.5 text-xs font-semibold rounded-full bg-white/80 backdrop-blur-sm text-primary-700 border border-primary-200 shadow-sm">
-                      {selectedTournamentData?.status || ''}
-                    </span>
+              {selectedTournament ? (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    {selectedTournamentData?.logo ? (
+                      <div className="relative w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
+                        <Image
+                          src={selectedTournamentData.logo}
+                          alt={selectedTournamentData.name || 'Tournament Logo'}
+                          fill
+                          className="object-contain rounded-lg"
+                          sizes="(max-width: 640px) 48px, 56px"
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-2xl sm:text-3xl flex-shrink-0">🏆</span>
+                    )}
+                    <h3 className="text-2xl sm:text-3xl font-bold text-primary-700">
+                      {selectedTournamentData?.name || 'Tournament'}
+                    </h3>
                   </div>
-                );
-              })() : (
+                  <span className="px-3 py-1.5 text-xs font-semibold rounded-full bg-white/80 backdrop-blur-sm text-primary-700 border border-primary-200 shadow-sm">
+                    {selectedTournamentData?.status || ''}
+                  </span>
+                </div>
+              ) : (
                 <p className="text-lg sm:text-xl font-semibold text-gray-400 italic">
                   No tournament selected
                 </p>
@@ -473,7 +482,7 @@ export default function HomePage() {
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-gray-600 font-medium">Balance</span>
                               <span className="text-sm font-bold text-gray-900">
-                                {formatCurrency(team.remainingAmount)}
+                                {formatCurrencyWithNegative(team.remainingAmount)}
                               </span>
                             </div>
                             {maxBids[team._id] !== undefined && (

@@ -14,12 +14,13 @@ import Link from 'next/link';
 export default function AuctionPage() {
   const [tournaments, setTournaments] = useState([]);
   const [selectedTournament, setSelectedTournament] = useState('');
+  const [selectedTournamentData, setSelectedTournamentData] = useState(null);
   const [teams, setTeams] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState('');
   const [customBidAmount, setCustomBidAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [sellConfirm, setSellConfirm] = useState({ isOpen: false, playerName: '', teamName: '' });
+  const [sellConfirm, setSellConfirm] = useState({ isOpen: false, playerName: '', teamName: '', exceedsLimit: false, excessAmount: 0 });
   const [cancelPlayerConfirm, setCancelPlayerConfirm] = useState({ isOpen: false, playerName: '' });
   const [maxBids, setMaxBids] = useState({});
   const [unsoldPlayers, setUnsoldPlayers] = useState([]);
@@ -50,12 +51,22 @@ export default function AuctionPage() {
 
   useEffect(() => {
     if (selectedTournament) {
+      fetchTournamentData();
       fetchTeams();
       fetchCurrentAuction();
       fetchMaxBids();
       fetchAllPlayers();
     }
   }, [selectedTournament]);
+
+  const fetchTournamentData = async () => {
+    try {
+      const response = await tournamentAPI.getById(selectedTournament);
+      setSelectedTournamentData(response.data.data);
+    } catch (error) {
+      console.error('Error fetching tournament data:', error);
+    }
+  };
 
   useEffect(() => {
     if (socketTeams.length > 0) {
@@ -65,11 +76,11 @@ export default function AuctionPage() {
 
   useEffect(() => {
     if (currentBidPrice) {
-      setCustomBidAmount(getNextBidAmount(currentBidPrice).toString());
+      setCustomBidAmount(getNextBidAmount(currentBidPrice, selectedTournamentData).toString());
     } else if (currentPlayer) {
-      setCustomBidAmount(getNextBidAmount(currentPlayer.basePrice).toString());
+      setCustomBidAmount(getNextBidAmount(currentPlayer.basePrice, selectedTournamentData).toString());
     }
-  }, [currentBidPrice, currentPlayer]);
+  }, [currentBidPrice, currentPlayer, selectedTournamentData]);
 
   // Debounced search handler for player selection modal
   const debouncedPlayerSearchRef = useRef(
@@ -226,15 +237,8 @@ export default function AuctionPage() {
       return;
     }
     
-    // Check max bid warning
+    // Allow bids even if they exceed max bid (no longer blocking)
     const bidAmount = parseInt(customBidAmount);
-    const maxBid = maxBids[selectedTeam];
-    if (maxBid !== undefined && bidAmount > maxBid) {
-      const team = teams.find((t) => t._id === selectedTeam);
-      if (!confirm(`Warning: This bid (${formatCurrency(bidAmount)}) exceeds the maximum available bid (${formatCurrency(maxBid)}) for ${team?.name}. The team may not be able to afford minimum required players. Do you want to continue?`)) {
-        return;
-      }
-    }
     
     setLoading(true);
     setError('');
@@ -246,7 +250,7 @@ export default function AuctionPage() {
       });
       if (response.data.success) {
         setCurrentBidPrice(response.data.data.currentBidPrice);
-        setCustomBidAmount(getNextBidAmount(response.data.data.currentBidPrice).toString());
+        setCustomBidAmount(getNextBidAmount(response.data.data.currentBidPrice, selectedTournamentData).toString());
         // Update team balance
         const updatedTeams = teams.map((team) =>
           team._id === selectedTeam
@@ -271,7 +275,17 @@ export default function AuctionPage() {
     }
     const team = teams.find((t) => t._id === selectedTeam);
     if (currentPlayer && team) {
-      setSellConfirm({ isOpen: true, playerName: currentPlayer.name, teamName: team.name });
+      const bidPrice = currentBidPrice || currentPlayer.basePrice || 0;
+      const exceedsLimit = team.remainingAmount < bidPrice;
+      const excessAmount = exceedsLimit ? bidPrice - team.remainingAmount : 0;
+      
+      setSellConfirm({ 
+        isOpen: true, 
+        playerName: currentPlayer.name, 
+        teamName: team.name,
+        exceedsLimit,
+        excessAmount
+      });
     }
   };
 
@@ -389,10 +403,18 @@ export default function AuctionPage() {
 
   const selectedTeamData = teams.find((t) => t._id === selectedTeam);
   const increment = currentBidPrice
-    ? calculateBidIncrement(currentBidPrice)
+    ? calculateBidIncrement(currentBidPrice, selectedTournamentData)
     : currentPlayer
-    ? calculateBidIncrement(currentPlayer.basePrice)
+    ? calculateBidIncrement(currentPlayer.basePrice, selectedTournamentData)
     : 100;
+
+  // Helper to format currency with negative styling
+  const formatCurrencyWithNegative = (amount) => {
+    if (amount < 0) {
+      return <span className="text-red-600 font-semibold">-{formatCurrency(Math.abs(amount))}</span>;
+    }
+    return formatCurrency(amount);
+  };
 
   return (
     <div>
@@ -533,7 +555,7 @@ export default function AuctionPage() {
                     {teams.length > 0 ? (
                       teams.map((team) => (
                         <option key={team._id} value={team._id}>
-                          {team.name} - Remaining: {formatCurrency(team.remainingAmount)}
+                          {team.name} - Remaining: {team.remainingAmount < 0 ? '-' : ''}{formatCurrency(Math.abs(team.remainingAmount))}
                         </option>
                       ))
                     ) : (
@@ -565,10 +587,10 @@ export default function AuctionPage() {
                 {selectedTeamData && (
                   <div className="bg-gray-50 p-4 rounded-md space-y-2">
                     <div className="text-sm text-gray-600">
-                      Team Balance: {formatCurrency(selectedTeamData.remainingAmount)}
+                      Team Balance: {formatCurrencyWithNegative(selectedTeamData.remainingAmount)}
                     </div>
                     <div className="text-sm text-gray-600">
-                      After Bid: {formatCurrency(selectedTeamData.remainingAmount - parseInt(customBidAmount || 0))}
+                      After Bid: {formatCurrencyWithNegative(selectedTeamData.remainingAmount - parseInt(customBidAmount || 0))}
                     </div>
                     {maxBids[selectedTeam] !== undefined && (
                       <div className={`text-sm font-medium ${
@@ -656,7 +678,7 @@ export default function AuctionPage() {
                     {team.name}
                   </Link>
                   <div className="text-sm text-gray-600">
-                    Balance: {formatCurrency(team.remainingAmount)}
+                    Balance: {formatCurrencyWithNegative(team.remainingAmount)}
                   </div>
                   {maxBids[team._id] !== undefined && (
                     <div className="text-sm font-medium text-primary-600">
@@ -675,10 +697,25 @@ export default function AuctionPage() {
 
       <ConfirmationModal
         isOpen={sellConfirm.isOpen}
-        onClose={() => setSellConfirm({ isOpen: false, playerName: '', teamName: '' })}
+        onClose={() => setSellConfirm({ isOpen: false, playerName: '', teamName: '', exceedsLimit: false, excessAmount: 0 })}
         onConfirm={confirmSell}
         title="Sell Player"
-        message={`Sell "${sellConfirm.playerName}" to "${sellConfirm.teamName}" for ${formatCurrency(currentBidPrice || currentPlayer?.basePrice || 0)}?`}
+        message={
+          <div>
+            <p className="mb-2">
+              Sell "{sellConfirm.playerName}" to "{sellConfirm.teamName}" for {formatCurrency(currentBidPrice || currentPlayer?.basePrice || 0)}?
+            </p>
+            {sellConfirm.exceedsLimit && (
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <p className="text-sm font-semibold text-yellow-800 mb-1">⚠️ Budget Limit Exceeded</p>
+                <p className="text-sm text-yellow-700">
+                  This team will exceed their budget limit by {formatCurrency(sellConfirm.excessAmount)}. 
+                  The amount will show in negative and fine will be calculated externally.
+                </p>
+              </div>
+            )}
+          </div>
+        }
         confirmText="Sell"
         cancelText="Cancel"
         type="primary"
