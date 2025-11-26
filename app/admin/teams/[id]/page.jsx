@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { teamAPI, playerAPI, tournamentAPI } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
+import { useToast } from '@/components/shared/Toast';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import Modal from '@/components/shared/Modal';
@@ -17,7 +18,7 @@ export default function TeamDetailPage() {
   const [loading, setLoading] = useState(true);
   const [soldEditModal, setSoldEditModal] = useState({ isOpen: false, player: null });
   const [teams, setTeams] = useState([]);
-  const [submitError, setSubmitError] = useState('');
+  const { showToast } = useToast();
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
 
@@ -95,19 +96,19 @@ export default function TeamDetailPage() {
 
   const handleSoldEdit = async (soldPrice, soldTo) => {
     try {
-      setSubmitError('');
       const formData = new FormData();
       formData.append('soldPrice', soldPrice || '');
       formData.append('soldTo', soldTo || '');
       
       await playerAPI.update(soldEditModal.player._id, formData);
+      showToast('Player sale details updated successfully!', 'success');
       setSoldEditModal({ isOpen: false, player: null });
       // Refresh team details to get updated amounts and player counts
       fetchTeamDetails();
       fetchAllTeams();
     } catch (error) {
       console.error('Error updating sold player:', error);
-      setSubmitError(error.response?.data?.message || 'Error updating sold player');
+      showToast(error.response?.data?.message || 'Error updating sold player', 'error');
     }
   };
 
@@ -241,7 +242,6 @@ export default function TeamDetailPage() {
         isOpen={soldEditModal.isOpen}
         onClose={() => {
           setSoldEditModal({ isOpen: false, player: null });
-          setSubmitError('');
         }}
         title="Edit Sold Player Details"
       >
@@ -250,11 +250,9 @@ export default function TeamDetailPage() {
             player={soldEditModal.player}
             teams={teams}
             onSave={handleSoldEdit}
-            onCancel={() => {
-              setSoldEditModal({ isOpen: false, player: null });
-              setSubmitError('');
-            }}
-            error={submitError}
+        onCancel={() => {
+          setSoldEditModal({ isOpen: false, player: null });
+        }}
           />
         )}
       </Modal>
@@ -270,7 +268,7 @@ export default function TeamDetailPage() {
 }
 
 // Sold Player Edit Form Component
-function SoldPlayerEditForm({ player, teams, onSave, onCancel, error }) {
+function SoldPlayerEditForm({ player, teams, onSave, onCancel }) {
   const [soldPrice, setSoldPrice] = useState(player.soldPrice?.toString() || '');
   const [soldTo, setSoldTo] = useState(player.soldTo?._id || player.soldTo || '');
   const [loading, setLoading] = useState(false);
@@ -287,12 +285,6 @@ function SoldPlayerEditForm({ player, teams, onSave, onCancel, error }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 mb-4">
-          <div className="text-sm text-red-700">{error}</div>
-        </div>
-      )}
-
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Player Name

@@ -9,6 +9,7 @@ import Image from 'next/image';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
 import UserHeader from '@/components/shared/UserHeader';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
+import { useToast } from '@/components/shared/Toast';
 
 // Helper to format currency with negative styling
 const formatCurrencyWithNegative = (amount) => {
@@ -26,8 +27,8 @@ export default function HomePage() {
   const [lastPlayersLimit, setLastPlayersLimit] = useState(5);
   const [hasMorePlayers, setHasMorePlayers] = useState(false);
   const [currentBidTeam, setCurrentBidTeam] = useState(null);
-  const [notification, setNotification] = useState(null);
   const [maxBids, setMaxBids] = useState({});
+  const { showToast } = useToast();
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
 
@@ -47,16 +48,17 @@ export default function HomePage() {
     }
     // Handle player sold/unsold
     if (data.type === 'sold' || data.type === 'unsold') {
-      setNotification({
-        type: data.type,
-        playerName: data.playerName,
-        teamName: data.teamName,
-        price: data.price,
-      });
+      if (data.type === 'sold') {
+        showToast(
+          `${data.playerName} SOLD to ${data.teamName} for ${formatCurrency(data.price)}!`,
+          'success',
+          5000
+        );
+      } else {
+        showToast(`${data.playerName} marked as UNSOLD`, 'info', 4000);
+      }
       // Fetch last 5 players
       fetchLastPlayers();
-      // Clear notification after 5 seconds
-      setTimeout(() => setNotification(null), 5000);
     }
     // Handle new player selected
     if (data.type === 'playerSelected') {
@@ -286,6 +288,11 @@ export default function HomePage() {
                         )}
                       </div>
                       <p className="text-xl sm:text-2xl text-gray-600 font-medium mb-2">{currentPlayer.role}</p>
+                      {currentPlayer.category && (
+                        <p className="text-base sm:text-lg font-semibold text-primary-600 mb-2">
+                          Category: {currentPlayer.category}
+                        </p>
+                      )}
                       <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
                         {currentPlayer.battingStyle && (
                           <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
@@ -301,16 +308,24 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div className="border-t border-gray-200 pt-6 space-y-4">
+                    {currentPlayer.category && (
+                      <div className="flex justify-between items-center py-2 px-4 bg-gray-50 rounded-xl">
+                        <span className="text-sm font-medium text-gray-600">Category</span>
+                        <span className="text-xs font-mono text-gray-700">
+                          {currentPlayer?.category}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between items-center py-3 px-4 bg-gray-50 rounded-xl">
                       <span className="text-base font-medium text-gray-600">Base Price</span>
                       <span className="text-xl font-bold text-gray-900">
-                        {formatCurrency(currentPlayer.basePrice)}
+                        {formatCurrency(currentPlayer.basePrice || 0)}
                       </span>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 py-4 px-5 bg-gradient-to-r from-primary-50 to-blue-50 rounded-xl border-2 border-primary-200">
                       <span className="text-xl sm:text-2xl font-bold text-gray-700">Current Bid</span>
                       <span className="text-4xl sm:text-5xl font-bold text-primary-600 transition-all duration-300 transform hover:scale-105">
-                        {formatCurrency(currentBidPrice || currentPlayer.basePrice)}
+                        {formatCurrency(currentBidPrice || currentPlayer.basePrice || 0)}
                       </span>
                     </div>
                     {currentBidTeam && (
@@ -331,35 +346,6 @@ export default function HomePage() {
                 </div>
               )}
               
-              {/* Notification - Enhanced */}
-              {notification && (
-                <div
-                  className={`mt-6 p-5 rounded-xl border-2 shadow-md ${
-                    notification.type === 'sold'
-                      ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300'
-                      : 'bg-gray-50 border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-lg font-bold text-gray-900 mb-1">{notification.playerName}</p>
-                      {notification.type === 'sold' ? (
-                        <p className="text-sm font-medium text-green-700">
-                          ✅ SOLD to <span className="font-bold">{notification.teamName}</span> for {formatCurrency(notification.price)}
-                        </p>
-                      ) : (
-                        <p className="text-sm font-medium text-gray-700">❌ UNSOLD</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setNotification(null)}
-                      className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* Recent Players - Enhanced */}
               {lastPlayers.length > 0 && (

@@ -7,6 +7,7 @@ import ConfirmationModal from '@/components/shared/ConfirmationModal';
 import Modal from '@/components/shared/Modal';
 import SearchInput from '@/components/shared/SearchInput';
 import { formatCurrency, calculateBidIncrement, getNextBidAmount, debounce } from '@/lib/utils';
+import { useToast } from '@/components/shared/Toast';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import Link from 'next/link';
@@ -19,8 +20,15 @@ export default function AuctionPage() {
   const [selectedTeam, setSelectedTeam] = useState('');
   const [customBidAmount, setCustomBidAmount] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [sellConfirm, setSellConfirm] = useState({ isOpen: false, playerName: '', teamName: '', exceedsLimit: false, excessAmount: 0 });
+  const { showToast } = useToast();
+  const [sellConfirm, setSellConfirm] = useState({ 
+    isOpen: false, 
+    playerName: '', 
+    teamName: '', 
+    exceedsLimit: false, 
+    excessAmount: 0,
+    categoryWarnings: []
+  });
   const [cancelPlayerConfirm, setCancelPlayerConfirm] = useState({ isOpen: false, playerName: '' });
   const [maxBids, setMaxBids] = useState({});
   const [unsoldPlayers, setUnsoldPlayers] = useState([]);
@@ -185,11 +193,10 @@ export default function AuctionPage() {
 
   const handleStartAuction = async () => {
     if (!selectedTournament) {
-      setError('Please select a tournament');
+      showToast('Please select a tournament', 'warning');
       return;
     }
     setLoading(true);
-    setError('');
     try {
       const response = await auctionAPI.start(selectedTournament);
       if (response.data.success) {
@@ -197,11 +204,12 @@ export default function AuctionPage() {
         setCurrentBidPrice(response.data.data.currentBidPrice);
         setIsActive(true);
         setSelectedTeam(''); // Reset team selection
+        showToast('Auction started successfully!', 'success');
         // Refresh teams to get latest balances
         fetchTeams();
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error starting auction');
+      showToast(error.response?.data?.message || 'Error starting auction', 'error');
     } finally {
       setLoading(false);
     }
@@ -209,11 +217,10 @@ export default function AuctionPage() {
 
   const handleShuffle = async () => {
     if (!selectedTournament) {
-      setError('Please select a tournament');
+      showToast('Please select a tournament', 'warning');
       return;
     }
     setLoading(true);
-    setError('');
     try {
       const response = await auctionAPI.shuffle(selectedTournament);
       if (response.data.success) {
@@ -221,11 +228,12 @@ export default function AuctionPage() {
         setCurrentBidPrice(response.data.data.currentBidPrice);
         setIsActive(true);
         setSelectedTeam(''); // Reset team selection
+        showToast('Player shuffled successfully!', 'success');
         // Refresh teams to get latest balances
         fetchTeams();
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error shuffling player');
+      showToast(error.response?.data?.message || 'Error shuffling player', 'error');
     } finally {
       setLoading(false);
     }
@@ -233,7 +241,7 @@ export default function AuctionPage() {
 
   const handlePlaceBid = async () => {
     if (!selectedTournament || !selectedTeam || !customBidAmount) {
-      setError('Please select team and enter bid amount');
+      showToast('Please select team and enter bid amount', 'warning');
       return;
     }
     
@@ -241,7 +249,6 @@ export default function AuctionPage() {
     const bidAmount = parseInt(customBidAmount);
     
     setLoading(true);
-    setError('');
     try {
       const response = await auctionAPI.placeBid({
         tournamentId: selectedTournament,
@@ -251,6 +258,7 @@ export default function AuctionPage() {
       if (response.data.success) {
         setCurrentBidPrice(response.data.data.currentBidPrice);
         setCustomBidAmount(getNextBidAmount(response.data.data.currentBidPrice, selectedTournamentData).toString());
+        showToast(`Bid of ${formatCurrency(bidAmount)} placed successfully!`, 'success');
         // Update team balance
         const updatedTeams = teams.map((team) =>
           team._id === selectedTeam
@@ -262,49 +270,147 @@ export default function AuctionPage() {
         fetchMaxBids(); // Refresh max bids
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error placing bid');
+      showToast(error.response?.data?.message || 'Error placing bid', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSell = () => {
+  const handleSell = async () => {
     if (!selectedTournament || !selectedTeam) {
-      setError('Please select a team');
+      showToast('Please select a team', 'warning');
       return;
     }
     const team = teams.find((t) => t._id === selectedTeam);
-    if (currentPlayer && team) {
+    if (currentPlayer && team && selectedTournamentData) {
       const bidPrice = currentBidPrice || currentPlayer.basePrice || 0;
       const exceedsLimit = team.remainingAmount < bidPrice;
       const excessAmount = exceedsLimit ? bidPrice - team.remainingAmount : 0;
+      
+      // Check category requirements
+      const categoryWarnings = [];
+      
+      if (selectedTournamentData.categories && selectedTournamentData.categories.length > 0) {
+        // Fetch team's players with their categories
+        try {
+          const teamResponse = await teamAPI.getById(selectedTeam);
+          const teamWithPlayers = teamResponse.data.data;
+          const teamPlayers = teamWithPlayers.players || [];
+          
+          // Count players per category
+          const playersByCategoryId = {};
+          teamPlayers.forEach((player) => {
+            const catId = player.categoryId ? player.categoryId.toString() : null;
+            if (catId) {
+              if (!playersByCategoryId[catId]) {
+                playersByCategoryId[catId] = 0;
+              }
+              playersByCategoryId[catId]++;
+            }
+          });
+          
+          // Calculate team size after sale
+          const currentPlayerCount = teamPlayers.length;
+          const teamSizeAfterSale = currentPlayerCount + 1;
+          const availableSlotsAfterSale = selectedTournamentData.maxPlayers - teamSizeAfterSale;
+          
+          // Get current player's category
+          const currentPlayerCategoryId = currentPlayer.categoryId ? currentPlayer.categoryId.toString() : null;
+          
+          // Calculate total players still needed
+          let totalPlayersNeeded = 0;
+          const categoryNeeds = [];
+          
+          selectedTournamentData.categories.forEach((category) => {
+            const catId = category._id ? category._id.toString() : null;
+            const currentCount = catId ? (playersByCategoryId[catId] || 0) : 0;
+            const minRequired = category.minPlayers || 0;
+            
+            // If this sale is for a player in this category, add 1 to count
+            let countAfterSale = currentCount;
+            if (currentPlayerCategoryId === catId) {
+              countAfterSale = currentCount + 1;
+            }
+            
+            const remainingNeeded = Math.max(0, minRequired - countAfterSale);
+            if (remainingNeeded > 0) {
+              totalPlayersNeeded += remainingNeeded;
+              categoryNeeds.push({
+                name: category.name,
+                needed: remainingNeeded
+              });
+            }
+          });
+          
+          // Check slot availability
+          if (totalPlayersNeeded > availableSlotsAfterSale) {
+            const categoryList = categoryNeeds.map(c => `${c.needed} ${c.name}`).join(', ');
+            categoryWarnings.push(
+              `Team cannot meet category requirements. After this sale, team will have ${availableSlotsAfterSale} slot(s) remaining but needs ${totalPlayersNeeded} more player(s) (${categoryList}). Maximum team size is ${selectedTournamentData.maxPlayers}.`
+            );
+          }
+          
+          // Check budget for each category
+          const remainingAfterSale = team.remainingAmount - bidPrice;
+          
+          selectedTournamentData.categories.forEach((category) => {
+            const catId = category._id ? category._id.toString() : null;
+            const currentCount = catId ? (playersByCategoryId[catId] || 0) : 0;
+            const minRequired = category.minPlayers || 0;
+            
+            let countAfterSale = currentCount;
+            if (currentPlayerCategoryId === catId) {
+              countAfterSale = currentCount + 1;
+            }
+            
+            const remainingNeeded = Math.max(0, minRequired - countAfterSale);
+            
+            if (remainingNeeded > 0) {
+              // Estimate required amount (using category basePrice as minimum)
+              const requiredAmount = remainingNeeded * category.basePrice;
+              
+              if (remainingAfterSale < requiredAmount) {
+                categoryWarnings.push(
+                  `Team cannot afford minimum required players for category "${category.name}". After this sale, team needs ${remainingNeeded} more player(s) in this category but only has ${remainingAfterSale} remaining (minimum required: ${requiredAmount}).`
+                );
+              }
+            }
+          });
+        } catch (error) {
+          console.error('Error checking category requirements:', error);
+        }
+      }
       
       setSellConfirm({ 
         isOpen: true, 
         playerName: currentPlayer.name, 
         teamName: team.name,
         exceedsLimit,
-        excessAmount
+        excessAmount,
+        categoryWarnings
       });
     }
   };
 
   const confirmSell = async () => {
     setLoading(true);
-    setError('');
     try {
       const response = await auctionAPI.sell(selectedTournament, selectedTeam);
       if (response.data.success) {
+        const playerName = currentPlayer?.name || 'Player';
+        const teamName = teams.find(t => t._id === selectedTeam)?.name || 'Team';
+        const price = currentBidPrice || 0;
         setCurrentPlayer(null);
         setCurrentBidPrice(null);
         setIsActive(false);
         setSelectedTeam('');
-        setSellConfirm({ isOpen: false, playerName: '', teamName: '' });
+        setSellConfirm({ isOpen: false, playerName: '', teamName: '', exceedsLimit: false, excessAmount: 0, categoryWarnings: [] });
+        showToast(`${playerName} sold to ${teamName} for ${formatCurrency(price)}!`, 'success', 5000);
         fetchTeams();
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error selling player');
-      setSellConfirm({ isOpen: false, playerName: '', teamName: '' });
+      showToast(error.response?.data?.message || 'Error selling player', 'error');
+      setSellConfirm({ isOpen: false, playerName: '', teamName: '', exceedsLimit: false, excessAmount: 0, categoryWarnings: [] });
     } finally {
       setLoading(false);
     }
@@ -312,26 +418,27 @@ export default function AuctionPage() {
 
   const handleMarkUnsold = async () => {
     if (!selectedTournament) {
-      setError('Please select a tournament');
+      showToast('Please select a tournament', 'warning');
       return;
     }
     if (!currentPlayer) {
-      setError('No player selected');
+      showToast('No player selected', 'warning');
       return;
     }
     setLoading(true);
-    setError('');
     try {
       const response = await auctionAPI.markUnsold(selectedTournament);
       if (response.data.success) {
+        const playerName = currentPlayer?.name || 'Player';
         setCurrentPlayer(null);
         setCurrentBidPrice(null);
         setIsActive(false);
         setSelectedTeam('');
+        showToast(`${playerName} marked as unsold`, 'info');
         fetchAllPlayers(); // Refresh players list
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error marking player as unsold');
+      showToast(error.response?.data?.message || 'Error marking player as unsold', 'error');
     } finally {
       setLoading(false);
     }
@@ -339,16 +446,16 @@ export default function AuctionPage() {
 
   const handleSelectPlayer = async (playerId) => {
     if (!selectedTournament) {
-      setError('Please select a tournament');
+      showToast('Please select a tournament', 'warning');
       return;
     }
     setLoading(true);
-    setError('');
     try {
       const response = await auctionAPI.selectPlayer(selectedTournament, playerId);
       if (response.data.success) {
         setCurrentPlayer(response.data.data.currentPlayer);
         setCurrentBidPrice(response.data.data.currentBidPrice);
+        showToast('Player selected for auction', 'success');
         setIsActive(true);
         setSelectedTeam('');
         setShowPlayerSelect(false);
@@ -357,7 +464,7 @@ export default function AuctionPage() {
         fetchAllPlayers(); // Refresh players list
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error selecting player');
+      showToast(error.response?.data?.message || 'Error selecting player', 'error');
     } finally {
       setLoading(false);
     }
@@ -370,25 +477,26 @@ export default function AuctionPage() {
 
   const confirmCancelPlayer = async () => {
     if (!selectedTournament) {
-      setError('Please select a tournament');
+      showToast('Please select a tournament', 'warning');
       setCancelPlayerConfirm({ isOpen: false, playerName: '' });
       return;
     }
     setLoading(true);
-    setError('');
     try {
       const response = await auctionAPI.cancelPlayer(selectedTournament);
       if (response.data.success) {
+        const playerName = currentPlayer?.name || 'Player';
         setCurrentPlayer(null);
         setCurrentBidPrice(null);
         setIsActive(false);
         setSelectedTeam('');
         setCustomBidAmount('');
         setCancelPlayerConfirm({ isOpen: false, playerName: '' });
+        showToast(`${playerName} auction cancelled`, 'info');
         fetchAllPlayers(); // Refresh players list
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error cancelling player');
+      showToast(error.response?.data?.message || 'Error cancelling player', 'error');
       setCancelPlayerConfirm({ isOpen: false, playerName: '' });
     } finally {
       setLoading(false);
@@ -423,11 +531,6 @@ export default function AuctionPage() {
         <p className="mt-2 text-sm text-gray-600">Manage live auction</p>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-md bg-red-50 p-4">
-          <div className="text-sm text-red-700">{error}</div>
-        </div>
-      )}
 
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -487,6 +590,11 @@ export default function AuctionPage() {
                       )}
                     </div>
                     <p className="text-gray-600">{currentPlayer.role}</p>
+                    {currentPlayer.category && (
+                      <p className="text-sm font-medium text-primary-600">
+                        Category: {currentPlayer.category}
+                      </p>
+                    )}
                     {currentPlayer.battingStyle && (
                       <p className="text-sm text-gray-500">Batting: {currentPlayer.battingStyle}</p>
                     )}
@@ -513,16 +621,24 @@ export default function AuctionPage() {
                   </div>
                 </div>
                 <div className="border-t pt-4">
+                  {currentPlayer?.category && (
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-gray-600">Category:</span>
+                      <span className="text-sm font-mono text-gray-700">
+                        {currentPlayer?.category}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Base Price:</span>
                     <span className="text-xl font-bold text-gray-900">
-                      {formatCurrency(currentPlayer.basePrice)}
+                      {formatCurrency(currentPlayer.basePrice || 0)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <span className="text-gray-600">Current Bid:</span>
                     <span className="text-2xl font-bold text-primary-600">
-                      {formatCurrency(currentBidPrice || currentPlayer.basePrice)}
+                      {formatCurrency(currentBidPrice || currentPlayer.basePrice || 0)}
                     </span>
                   </div>
                   <div className="mt-2 text-sm text-gray-500">
@@ -697,7 +813,7 @@ export default function AuctionPage() {
 
       <ConfirmationModal
         isOpen={sellConfirm.isOpen}
-        onClose={() => setSellConfirm({ isOpen: false, playerName: '', teamName: '', exceedsLimit: false, excessAmount: 0 })}
+        onClose={() => setSellConfirm({ isOpen: false, playerName: '', teamName: '', exceedsLimit: false, excessAmount: 0, categoryWarnings: [] })}
         onConfirm={confirmSell}
         title="Sell Player"
         message={
@@ -711,6 +827,19 @@ export default function AuctionPage() {
                 <p className="text-sm text-yellow-700">
                   This team will exceed their budget limit by {formatCurrency(sellConfirm.excessAmount)}. 
                   The amount will show in negative and fine will be calculated externally.
+                </p>
+              </div>
+            )}
+            {sellConfirm.categoryWarnings && sellConfirm.categoryWarnings.length > 0 && (
+              <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                <p className="text-sm font-semibold text-orange-800 mb-2">⚠️ Category Requirements Warning</p>
+                <ul className="list-disc list-inside space-y-1">
+                  {sellConfirm.categoryWarnings.map((warning, index) => (
+                    <li key={index} className="text-sm text-orange-700">{warning}</li>
+                  ))}
+                </ul>
+                <p className="text-sm text-orange-600 mt-2 font-medium">
+                  You can proceed with the sale, but the team may not meet tournament requirements.
                 </p>
               </div>
             )}

@@ -32,6 +32,35 @@ export default function PlayersPage() {
     totalPages: 1,
   });
 
+  const getCategoryOptions = () => {
+    if (!tournaments.length) return [];
+
+    if (selectedTournament) {
+      const tournament = tournaments.find((t) => t._id === selectedTournament);
+      if (!tournament || !Array.isArray(tournament.categories)) return [];
+
+      const names = tournament.categories
+        .map((c) => (c && c.name ? c.name.trim() : ''))
+        .filter(Boolean);
+
+      return Array.from(new Set(names));
+    }
+
+    const nameSet = new Set();
+    tournaments.forEach((t) => {
+      if (Array.isArray(t.categories)) {
+        t.categories.forEach((c) => {
+          const name = c && c.name ? c.name.trim() : '';
+          if (name) {
+            nameSet.add(name);
+          }
+        });
+      }
+    });
+
+    return Array.from(nameSet);
+  };
+
   useEffect(() => {
     fetchTournaments();
   }, []);
@@ -215,8 +244,11 @@ export default function PlayersPage() {
                   className="w-full pl-9 pr-3 py-3 border-2 border-gray-200 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none cursor-pointer transition-all"
                 >
                   <option value="all">All Categories</option>
-                  <option value="Icon">Icon</option>
-                  <option value="Regular">Regular</option>
+                  {getCategoryOptions().map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { ruleAPI, tournamentAPI } from '@/lib/api';
+import { useToast } from '@/components/shared/Toast';
 import Table from '@/components/shared/Table';
 import Modal from '@/components/shared/Modal';
 import FormInput from '@/components/shared/FormInput';
@@ -27,7 +28,7 @@ export default function RulesPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
-  const [submitError, setSubmitError] = useState('');
+  const { showToast } = useToast();
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, title: '' });
   const [pagination, setPagination] = useState({
     page: 1,
@@ -44,7 +45,6 @@ export default function RulesPage() {
     validationSchema: ruleSchema,
     onSubmit: async (values, { setSubmitting, resetForm }) => {
       try {
-        setSubmitError('');
         const data = {
           ...values,
           tournamentId: selectedTournament,
@@ -52,8 +52,10 @@ export default function RulesPage() {
 
         if (editingRule) {
           await ruleAPI.update(editingRule._id, data);
+          showToast('Rule updated successfully!', 'success');
         } else {
           await ruleAPI.create(data);
+          showToast('Rule created successfully!', 'success');
         }
         
         setIsModalOpen(false);
@@ -62,7 +64,7 @@ export default function RulesPage() {
         fetchRules(pagination.page, pagination.limit);
       } catch (error) {
         console.error('Error saving rule:', error);
-        setSubmitError(error.response?.data?.message || 'Error saving rule');
+        showToast(error.response?.data?.message || 'Error saving rule', 'error');
         if (error.response?.data?.errors) {
           Object.keys(error.response.data.errors).forEach((key) => {
             formik.setFieldError(key, error.response.data.errors[key]);
@@ -124,7 +126,6 @@ export default function RulesPage() {
 
   const handleEdit = (rule) => {
     setEditingRule(rule);
-    setSubmitError('');
     formik.setValues({
       title: rule.title,
       description: rule.description,
@@ -143,7 +144,7 @@ export default function RulesPage() {
       fetchRules(pagination.page, pagination.limit);
     } catch (error) {
       console.error('Error deleting rule:', error);
-      alert(error.response?.data?.message || 'Error deleting rule');
+      showToast(error.response?.data?.message || 'Error deleting rule', 'error');
       setDeleteConfirm({ isOpen: false, id: null, title: '' });
     }
   };
@@ -151,7 +152,6 @@ export default function RulesPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingRule(null);
-    setSubmitError('');
     formik.resetForm();
   };
 
@@ -182,7 +182,6 @@ export default function RulesPage() {
           <button
             onClick={() => {
               setEditingRule(null);
-              setSubmitError('');
               formik.resetForm();
               setIsModalOpen(true);
             }}
@@ -238,11 +237,6 @@ export default function RulesPage() {
         title={editingRule ? 'Edit Rule' : 'Add Rule'}
       >
         <form onSubmit={formik.handleSubmit} className="space-y-4">
-          {submitError && (
-            <div className="rounded-md bg-red-50 p-4 mb-4">
-              <div className="text-sm text-red-700">{submitError}</div>
-            </div>
-          )}
 
           {!selectedTournament && (
             <div className="rounded-md bg-yellow-50 p-4 mb-4">

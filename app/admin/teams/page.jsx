@@ -14,6 +14,7 @@ import EmptyState from '@/components/shared/EmptyState';
 import TableSkeleton from '@/components/shared/TableSkeleton';
 import ImageCropModal from '@/components/shared/ImageCropModal';
 import { formatCurrency } from '@/lib/utils';
+import { useToast } from '@/components/shared/Toast';
 
 // Validation schema
 const teamSchema = Yup.object().shape({
@@ -40,7 +41,7 @@ export default function TeamsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
   const [selectedTournament, setSelectedTournament] = useState('');
-  const [submitError, setSubmitError] = useState('');
+  const { showToast } = useToast();
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, name: '' });
@@ -64,7 +65,6 @@ export default function TeamsPage() {
     validationSchema: teamSchema,
     onSubmit: async (values, { setSubmitting, resetForm }) => {
       try {
-        setSubmitError('');
         const formData = new FormData();
         
         Object.keys(values).forEach((key) => {
@@ -83,8 +83,10 @@ export default function TeamsPage() {
 
         if (editingTeam) {
           await teamAPI.update(editingTeam._id, formData);
+          showToast('Team updated successfully!', 'success');
         } else {
           await teamAPI.create(formData);
+          showToast('Team created successfully!', 'success');
         }
         
         setIsModalOpen(false);
@@ -95,7 +97,7 @@ export default function TeamsPage() {
         fetchTeams(selectedTournament, pagination.page, pagination.limit);
       } catch (error) {
         console.error('Error saving team:', error);
-        setSubmitError(error.response?.data?.message || 'Error saving team');
+        showToast(error.response?.data?.message || 'Error saving team', 'error');
         if (error.response?.data?.errors) {
           Object.keys(error.response.data.errors).forEach((key) => {
             formik.setFieldError(key, error.response.data.errors[key]);
@@ -192,7 +194,6 @@ export default function TeamsPage() {
 
   const handleEdit = (team) => {
     setEditingTeam(team);
-    setSubmitError('');
     setLogoFile(null);
     setLogoPreview(team.logo || '');
     formik.setValues({
@@ -224,7 +225,6 @@ export default function TeamsPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingTeam(null);
-    setSubmitError('');
     formik.resetForm();
   };
 
@@ -253,7 +253,6 @@ export default function TeamsPage() {
           <button
             onClick={() => {
               setEditingTeam(null);
-              setSubmitError('');
               formik.resetForm();
               if (selectedTournament) {
                 formik.setFieldValue('tournamentId', selectedTournament);
@@ -340,11 +339,6 @@ export default function TeamsPage() {
         title={editingTeam ? 'Edit Team' : 'Add Team'}
       >
         <form onSubmit={formik.handleSubmit} className="space-y-4">
-          {submitError && (
-            <div className="rounded-md bg-red-50 p-4 mb-4">
-              <div className="text-sm text-red-700">{submitError}</div>
-            </div>
-          )}
 
           <FormInput
             label="Tournament"

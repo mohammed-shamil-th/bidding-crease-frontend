@@ -4,27 +4,28 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import { authAPI } from '@/lib/api';
+import { useToast } from '@/components/shared/Toast';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { showToast } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
       const response = await authAPI.login(email, password);
       if (response.data.success) {
         Cookies.set('token', response.data.token, { expires: 7 });
+        showToast('Login successful!', 'success');
         router.push('/admin/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      showToast(err.response?.data?.message || 'Login failed. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -42,11 +43,6 @@ export default function LoginPage() {
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-700">{error}</div>
-            </div>
-          )}
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email" className="sr-only">
