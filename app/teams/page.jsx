@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { teamAPI, tournamentAPI } from '@/lib/api';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getCategoryIcon } from '@/lib/utils';
 import Link from 'next/link';
 import Image from 'next/image';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
@@ -358,9 +358,15 @@ export default function TeamsPage() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1">
                                   <p className="text-sm font-semibold text-gray-900 truncate">{player.name}</p>
-                                  {player.category === 'Icon' && (
-                                    <span className="text-yellow-500 text-sm flex-shrink-0">⭐</span>
-                                  )}
+                                  {(() => {
+                                    const tournament = tournaments.find(t => t._id === selectedTournament);
+                                    const categoryIcon = getCategoryIcon(player, tournament);
+                                    return categoryIcon ? (
+                                      <span className="text-sm flex-shrink-0" role="img" aria-label={player.category || 'Category icon'} title={player.category}>
+                                        {categoryIcon}
+                                      </span>
+                                    ) : null;
+                                  })()}
                                 </div>
                                 <p className="text-xs text-gray-600">{player.role}</p>
                               </div>

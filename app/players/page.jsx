@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { playerAPI, tournamentAPI } from '@/lib/api';
-import { formatCurrency, debounce } from '@/lib/utils';
+import { formatCurrency, debounce, getCategoryIcon } from '@/lib/utils';
 import Link from 'next/link';
 import Image from 'next/image';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
@@ -16,6 +16,7 @@ export default function PlayersPage() {
   const [players, setPlayers] = useState([]);
   const [tournaments, setTournaments] = useState([]);
   const [selectedTournament, setSelectedTournament] = useState('');
+  const [selectedTournamentData, setSelectedTournamentData] = useState(null);
   const [filter, setFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
@@ -203,7 +204,12 @@ export default function PlayersPage() {
                 </div>
                 <select
                   value={selectedTournament}
-                  onChange={(e) => setSelectedTournament(e.target.value)}
+                  onChange={(e) => {
+                    const tournamentId = e.target.value;
+                    setSelectedTournament(tournamentId);
+                    const tournament = tournaments.find(t => t._id === tournamentId);
+                    setSelectedTournamentData(tournament || null);
+                  }}
                   className="w-full pl-9 pr-3 py-3 border-2 border-gray-200 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none cursor-pointer transition-all"
                 >
                   <option value="">All Tournaments</option>
@@ -376,9 +382,14 @@ export default function PlayersPage() {
                           <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate group-hover:text-primary-600 transition-colors">
                             {player.name}
                           </h3>
-                          {player.category === 'Icon' && (
-                            <span className="text-yellow-500 flex-shrink-0 text-lg" title="Icon Player">⭐</span>
-                          )}
+                          {(() => {
+                            const categoryIcon = getCategoryIcon(player, selectedTournamentData);
+                            return categoryIcon ? (
+                              <span className="flex-shrink-0 text-lg" role="img" aria-label={player.category || 'Category icon'} title={player.category}>
+                                {categoryIcon}
+                              </span>
+                            ) : null;
+                          })()}
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">

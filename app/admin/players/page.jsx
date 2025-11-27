@@ -16,7 +16,7 @@ import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import EmptyState from '@/components/shared/EmptyState';
 import TableSkeleton from '@/components/shared/TableSkeleton';
 import ImageCropModal from '@/components/shared/ImageCropModal';
-import { formatCurrency, debounce } from '@/lib/utils';
+import { formatCurrency, debounce, getCategoryIcon } from '@/lib/utils';
 import { useToast } from '@/components/shared/Toast';
 
 const PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL || '';
@@ -546,38 +546,42 @@ export default function PlayersPage() {
     : null;
 
   // Memoized table rows to prevent re-rendering on search
-  const TableRows = memo(({ players, onEdit, onDelete, onImageClick }) => {
+  const TableRows = memo(({ players, onEdit, onDelete, onImageClick, tournament }) => {
     return (
       <>
-        {players.map((player) => (
-          <tr key={player._id}>
-            <td className="px-6 py-4 whitespace-nowrap">
-              <PlayerAvatar
-                player={player}
-                size="sm"
-                clickable={!!player.image}
-                onClick={() => player.image && onImageClick(player.image, player.name)}
-              />
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-              <Link href={`/admin/players/${player._id}`} className="text-primary-600 hover:text-primary-900">
-                {player.name}
-              </Link>
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {player.location || '-'}
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {player.role}
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              <div className="flex items-center space-x-1">
-                {player.category === 'Icon' && (
-                  <span className="text-yellow-500" title="Icon Player">⭐</span>
-                )}
-                <span>{player.category}</span>
-              </div>
-            </td>
+        {players.map((player) => {
+          const categoryIcon = getCategoryIcon(player, tournament);
+          return (
+            <tr key={player._id}>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <PlayerAvatar
+                  player={player}
+                  size="sm"
+                  clickable={!!player.image}
+                  onClick={() => player.image && onImageClick(player.image, player.name)}
+                />
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <Link href={`/admin/players/${player._id}`} className="text-primary-600 hover:text-primary-900">
+                  {player.name}
+                </Link>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {player.location || '-'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {player.role}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <div className="flex items-center space-x-1">
+                  {categoryIcon && (
+                    <span className="text-lg" role="img" aria-label={player.category || 'Category icon'} title={player.category}>
+                      {categoryIcon}
+                    </span>
+                  )}
+                  <span>{player.category}</span>
+                </div>
+              </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {formatCurrency(player.basePrice)}
             </td>
@@ -609,7 +613,8 @@ export default function PlayersPage() {
               </button>
             </td>
           </tr>
-        ))}
+          );
+        })}
       </>
     );
   });
@@ -804,6 +809,7 @@ export default function PlayersPage() {
                 setSelectedPlayerImage({ url, name });
                 setShowImageViewer(true);
               }}
+              tournament={selectedTournamentDetails}
             />
           </Table>
         )}

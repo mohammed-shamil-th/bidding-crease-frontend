@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { tournamentAPI, auctionAPI, teamAPI, playerAPI } from '@/lib/api';
 import useAuctionSocket from '@/components/socket/AuctionSocket';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getCategoryIcon } from '@/lib/utils';
 import Link from 'next/link';
 import Image from 'next/image';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
@@ -283,9 +283,14 @@ export default function HomePage() {
                         <Link href={`/players/${currentPlayer._id}`} className="text-3xl sm:text-4xl font-bold text-gray-900 hover:text-primary-600 break-words transition-colors">
                           {currentPlayer.name}
                         </Link>
-                        {currentPlayer.category === 'Icon' && (
-                          <span className="text-yellow-500 text-2xl sm:text-3xl flex-shrink-0" title="Icon Player">⭐</span>
-                        )}
+                        {(() => {
+                          const categoryIcon = getCategoryIcon(currentPlayer, selectedTournamentData);
+                          return categoryIcon ? (
+                            <span className="text-2xl sm:text-3xl flex-shrink-0" role="img" aria-label={currentPlayer.category || 'Category icon'} title={currentPlayer.category}>
+                              {categoryIcon}
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                       <p className="text-xl sm:text-2xl text-gray-600 font-medium mb-2">{currentPlayer.role}</p>
                       {currentPlayer.category && (
@@ -311,9 +316,19 @@ export default function HomePage() {
                     {currentPlayer.category && (
                       <div className="flex justify-between items-center py-2 px-4 bg-gray-50 rounded-xl">
                         <span className="text-sm font-medium text-gray-600">Category</span>
-                        <span className="text-xs font-mono text-gray-700">
-                          {currentPlayer?.category}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const categoryIcon = getCategoryIcon(currentPlayer, selectedTournamentData);
+                            return categoryIcon ? (
+                              <span className="text-lg" role="img" aria-label={currentPlayer.category || 'Category icon'}>
+                                {categoryIcon}
+                              </span>
+                            ) : null;
+                          })()}
+                          <span className="text-xs font-mono text-gray-700">
+                            {currentPlayer?.category}
+                          </span>
+                        </div>
                       </div>
                     )}
                     <div className="flex justify-between items-center py-3 px-4 bg-gray-50 rounded-xl">
@@ -378,9 +393,14 @@ export default function HomePage() {
                               <Link href={`/players/${player._id}`} className="text-sm font-semibold text-gray-900 hover:text-primary-600 truncate">
                                 {player.name}
                               </Link>
-                              {player.category === 'Icon' && (
-                                <span className="text-yellow-500 text-sm flex-shrink-0" title="Icon Player">⭐</span>
-                              )}
+                              {(() => {
+                                const categoryIcon = getCategoryIcon(player, selectedTournamentData);
+                                return categoryIcon ? (
+                                  <span className="text-sm flex-shrink-0" role="img" aria-label={player.category || 'Category icon'} title={player.category}>
+                                    {categoryIcon}
+                                  </span>
+                                ) : null;
+                              })()}
                             </div>
                             <p className="text-xs text-gray-600 font-medium">{player.role}</p>
                             {player.location && (

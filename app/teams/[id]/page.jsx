@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { teamAPI } from '@/lib/api';
-import { formatCurrency } from '@/lib/utils';
+import { teamAPI, tournamentAPI } from '@/lib/api';
+import { formatCurrency, getCategoryIcon } from '@/lib/utils';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
 import Link from 'next/link';
 import UserHeader from '@/components/shared/UserHeader';
@@ -12,6 +12,7 @@ export default function TeamDetailPage() {
   const params = useParams();
   const [team, setTeam] = useState(null);
   const [players, setPlayers] = useState([]);
+  const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,6 +27,17 @@ export default function TeamDetailPage() {
       const response = await teamAPI.getById(params.id);
       const teamData = response.data.data;
       setTeam(teamData);
+
+      // Fetch tournament to get categories
+      if (teamData.tournamentId) {
+        const tournamentId = teamData.tournamentId._id || teamData.tournamentId;
+        try {
+          const tournamentResponse = await tournamentAPI.getById(tournamentId);
+          setTournament(tournamentResponse.data.data);
+        } catch (error) {
+          console.error('Error fetching tournament:', error);
+        }
+      }
 
       // Players are already populated from backend
       if (teamData.players && teamData.players.length > 0) {
@@ -150,9 +162,14 @@ export default function TeamDetailPage() {
                             >
                               {player.name}
                             </Link>
-                            {player.category === 'Icon' && (
-                              <span className="text-yellow-500 flex-shrink-0" title="Icon Player">⭐</span>
-                            )}
+                            {(() => {
+                              const categoryIcon = getCategoryIcon(player, tournament);
+                              return categoryIcon ? (
+                                <span className="flex-shrink-0" role="img" aria-label={player.category || 'Category icon'} title={player.category}>
+                                  {categoryIcon}
+                                </span>
+                              ) : null;
+                            })()}
                           </div>
                           <p className="text-xs sm:text-sm text-gray-600">{player.role}</p>
                           <p className="text-xs text-gray-500">{player.category}</p>

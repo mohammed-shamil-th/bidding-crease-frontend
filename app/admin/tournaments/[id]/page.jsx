@@ -9,6 +9,7 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import FormInput from '@/components/shared/FormInput';
 import ImageCropModal from '@/components/shared/ImageCropModal';
+import EmojiPicker from '@/components/shared/EmojiPicker';
 
 const bidIncrementSchema = Yup.object().shape({
   minPrice: Yup.number().required('Min price is required').min(0, 'Min price must be >= 0'),
@@ -40,6 +41,8 @@ export default function TournamentDetailPage() {
   const [showCropModal, setShowCropModal] = useState(false);
   const [imageToCrop, setImageToCrop] = useState(null);
   const [croppingCategoryIndex, setCroppingCategoryIndex] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiPickerCategoryIndex, setEmojiPickerCategoryIndex] = useState(null);
 
   useEffect(() => {
     if (params.id) {
@@ -166,6 +169,24 @@ export default function TournamentDetailPage() {
       console.error('Error processing icon:', error);
       setError('Error processing icon');
     }
+  };
+
+  const handleOpenEmojiPicker = (index) => {
+    setEmojiPickerCategoryIndex(index);
+    setShowEmojiPicker(true);
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    if (emojiPickerCategoryIndex !== null) {
+      const updated = [...categories];
+      updated[emojiPickerCategoryIndex] = {
+        ...updated[emojiPickerCategoryIndex],
+        icon: emoji
+      };
+      setCategories(updated);
+    }
+    setShowEmojiPicker(false);
+    setEmojiPickerCategoryIndex(null);
   };
 
   const handleSave = async () => {
@@ -391,23 +412,32 @@ export default function TournamentDetailPage() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Icon (Optional)</label>
                     <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEmojiPicker(index)}
+                        className="w-12 h-12 border-2 border-gray-300 rounded-lg flex items-center justify-center text-2xl hover:border-primary-500 transition-colors bg-white"
+                        title="Select icon"
+                      >
+                        {category.icon || '😀'}
+                      </button>
                       {category.icon && (
-                        <img
-                          src={category.icon}
-                          alt={category.name || 'Category icon'}
-                          className="w-10 h-10 object-cover rounded"
-                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-600">Selected:</span>
+                          <span className="text-lg" role="img" aria-label={category.name || 'Category icon'}>
+                            {category.icon}
+                          </span>
+                        </div>
                       )}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) handleCategoryIconChange(index, file);
-                          e.target.value = '';
-                        }}
-                        className="flex-1 text-sm text-gray-500 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
-                      />
+                      {category.icon && (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateCategory(index, 'icon', '')}
+                          className="px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
+                          title="Remove icon"
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -452,6 +482,16 @@ export default function TournamentDetailPage() {
         imageFile={imageToCrop}
         onCropComplete={handleCropComplete}
         aspectRatio={1}
+      />
+
+      <EmojiPicker
+        isOpen={showEmojiPicker}
+        onClose={() => {
+          setShowEmojiPicker(false);
+          setEmojiPickerCategoryIndex(null);
+        }}
+        onSelect={handleEmojiSelect}
+        currentEmoji={emojiPickerCategoryIndex !== null ? categories[emojiPickerCategoryIndex]?.icon : null}
       />
     </div>
   );

@@ -6,7 +6,7 @@ import useAuctionSocket from '@/components/socket/AuctionSocket';
 import ConfirmationModal from '@/components/shared/ConfirmationModal';
 import Modal from '@/components/shared/Modal';
 import SearchInput from '@/components/shared/SearchInput';
-import { formatCurrency, calculateBidIncrement, getNextBidAmount, debounce } from '@/lib/utils';
+import { formatCurrency, calculateBidIncrement, getNextBidAmount, debounce, getCategoryIcon } from '@/lib/utils';
 import { useToast } from '@/components/shared/Toast';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
@@ -585,9 +585,14 @@ export default function AuctionPage() {
                       <Link href={`/admin/players/${currentPlayer._id}`} className="text-2xl font-bold text-gray-900 hover:text-primary-600">
                         {currentPlayer.name}
                       </Link>
-                      {currentPlayer.category === 'Icon' && (
-                        <span className="text-yellow-500 text-2xl" title="Icon Player">⭐</span>
-                      )}
+                      {(() => {
+                        const categoryIcon = getCategoryIcon(currentPlayer, selectedTournamentData);
+                        return categoryIcon ? (
+                          <span className="text-2xl" role="img" aria-label={currentPlayer.category || 'Category icon'} title={currentPlayer.category}>
+                            {categoryIcon}
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
                     <p className="text-gray-600">{currentPlayer.role}</p>
                     {currentPlayer.category && (
@@ -961,9 +966,14 @@ export default function AuctionPage() {
                     <div className="flex-1 text-left">
                       <div className="flex items-center space-x-2">
                         <p className="font-medium text-gray-900">{player.name}</p>
-                        {player.category === 'Icon' && (
-                          <span className="text-yellow-500" title="Icon Player">⭐</span>
-                        )}
+                        {(() => {
+                          const categoryIcon = getCategoryIcon(player, selectedTournamentData);
+                          return categoryIcon ? (
+                            <span role="img" aria-label={player.category || 'Category icon'} title={player.category}>
+                              {categoryIcon}
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                       <p className="text-sm text-gray-600">{player.role}</p>
                       <p className="text-xs text-gray-500">Base: {formatCurrency(player.basePrice)}</p>
