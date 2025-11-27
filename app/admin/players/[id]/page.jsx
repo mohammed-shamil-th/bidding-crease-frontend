@@ -384,6 +384,12 @@ export default function PlayerDetailPage() {
                   })()}
                 </p>
               </div>
+              {player.note && (
+                <div>
+                  <p className="text-sm text-gray-600">Note</p>
+                  <p className="text-base text-gray-900 whitespace-pre-wrap">{player.note}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

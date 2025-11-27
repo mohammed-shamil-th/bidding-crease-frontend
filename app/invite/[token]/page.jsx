@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { playerAPI, tournamentAPI } from '@/lib/api';
-import FormInput from '@/components/shared/FormInput';
 import { useToast } from '@/components/shared/Toast';
 import ImageCropModal from '@/components/shared/ImageCropModal';
+import { getCategoryIcon } from '@/lib/utils';
 
 const ROLE_OPTIONS = [
   { value: 'Batter', label: 'Batter' },
@@ -58,6 +58,7 @@ const formatDateTime = (value) => {
 export default function PlayerInvitePage({ params }) {
   const { token } = params;
   const { showToast } = useToast();
+  const fileInputRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [inviteData, setInviteData] = useState(null);
@@ -70,6 +71,7 @@ export default function PlayerInvitePage({ params }) {
   const [showCropModal, setShowCropModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
 
   const categories = inviteData?.tournament?.categories || [];
 
@@ -163,6 +165,30 @@ export default function PlayerInvitePage({ params }) {
     setImageToCrop(null);
   };
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      if (file.size > 2 * 1024 * 1024) {
+        showToast('Image must be smaller than 2MB', 'error');
+        return;
+      }
+      setImageToCrop(file);
+      setShowCropModal(true);
+    }
+  };
+
   const validateForm = () => {
     const errors = {};
     if (!formValues.name.trim()) {
@@ -188,7 +214,7 @@ export default function PlayerInvitePage({ params }) {
   const resetForm = () => {
     setFormValues((prev) => ({
       ...getInitialFormState(),
-      categoryId: prev.categoryId, // Preserve auto-selected category if available
+      categoryId: prev.categoryId,
     }));
     setFormErrors({});
     setImageFile(null);
@@ -227,6 +253,10 @@ export default function PlayerInvitePage({ params }) {
 
       setSuccessMessage('Your details were submitted successfully. Our team will review your profile and contact you if needed.');
       showToast('Player submitted successfully', 'success');
+      // Scroll to the top of the page when showing the success message
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
       resetForm();
       setInviteData((prev) => {
         if (!prev) return prev;
@@ -269,43 +299,63 @@ export default function PlayerInvitePage({ params }) {
   const renderContent = () => {
     if (loading) {
       return (
-        <div className="bg-white rounded-2xl shadow-sm p-10 text-center">
-          <p className="text-gray-600">Loading invitation details...</p>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
+            <p className="mt-4 text-gray-600 font-medium">Verifying invitation...</p>
+          </div>
         </div>
       );
     }
 
-    if (error) {
+    if (error && !inviteData) {
       return (
-        <div className="bg-white rounded-2xl shadow-sm p-10 text-center space-y-4">
-          <p className="text-red-600 font-semibold">{error}</p>
-          <p className="text-sm text-gray-500">
-            If you believe this is a mistake, please contact the tournament organizer for a new link.
-          </p>
-          <button
-            onClick={fetchInviteDetails}
-            className="px-4 py-2 rounded-md bg-primary-600 text-white hover:bg-primary-700"
-          >
-            Try Again
-          </button>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 px-4">
+          <div className="max-w-md w-full text-center">
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Invalid Link</h2>
+              <p className="text-gray-600">{error}</p>
+              <button
+                onClick={fetchInviteDetails}
+                className="mt-6 px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
         </div>
       );
     }
 
     if (!inviteData?.invite?.isActive) {
       return (
-        <div className="bg-white rounded-2xl shadow-sm p-10 text-center space-y-4">
-          <p className="text-gray-800 font-semibold">
-            This invitation link is no longer active.
-          </p>
-          {inviteData?.invite?.deactivatedAt && (
-            <p className="text-sm text-gray-500">
-              Deactivated on {formatDateTime(inviteData.invite.deactivatedAt)}.
-            </p>
-          )}
-          <p className="text-sm text-gray-500">
-            Please reach out to the tournament admin to request a new link.
-          </p>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 px-4">
+          <div className="max-w-md w-full text-center">
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Link Inactive</h2>
+              <p className="text-gray-600 mb-4">
+                This invitation link is no longer active.
+              </p>
+              {inviteData?.invite?.deactivatedAt && (
+                <p className="text-sm text-gray-500 mb-4">
+                  Deactivated on {formatDateTime(inviteData.invite.deactivatedAt)}.
+                </p>
+              )}
+              <p className="text-sm text-gray-500">
+                Please reach out to the tournament admin to request a new link.
+              </p>
+            </div>
+          </div>
         </div>
       );
     }
@@ -314,231 +364,419 @@ export default function PlayerInvitePage({ params }) {
     const invite = inviteData.invite;
 
     return (
-      <>
-        <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8 mb-6 flex flex-col gap-4 md:flex-row md:items-center">
-          <div className="flex items-center gap-4 flex-1 min-w-0">
-            {tournament.logo ? (
-              <Image
-                src={tournament.logo}
-                alt={tournament.name}
-                width={72}
-                height={72}
-                className="rounded-xl border border-gray-100 object-cover w-18 h-18"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center font-bold text-xl">
-                {tournament.name?.charAt(0) || 'T'}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-sm text-gray-500">You are registering for</p>
-              <h1 className="text-2xl font-bold text-gray-900 truncate">{tournament.name}</h1>
-              <p className="text-sm text-gray-500">
-                {tournament.location}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col items-start gap-2">
-            {renderStatusBadge()}
-            {/* <div className="text-xs text-gray-500">
-              {invite.maxUses
-                ? `${invite.maxUses - invite.usageCount} submission(s) remaining`
-                : `${invite.usageCount} submission(s) received`}
-            </div> */}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {invite.label || 'Player Registration'}
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Share accurate information so team owners can evaluate you during the auction.
-            </p>
-          </div>
-
-          {successMessage && (
-            <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-              {successMessage}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Player Photo (optional)
-              </label>
-              <div className="flex items-center gap-4">
-                <div className="w-28 h-28 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50">
-                  {imagePreview ? (
-                    <img
-                      src={imagePreview}
-                      alt="Player preview"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xs text-gray-400 text-center px-4">
-                      No photo selected
-                    </span>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 py-8 sm:py-12 px-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Tournament Header Card */}
+          <div className="mb-8 sm:mb-10">
+            <div className="bg-gradient-to-r from-primary-600 to-blue-600 rounded-3xl shadow-2xl p-8 sm:p-10 text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
+              <div className="relative z-10">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex-1">
+                    <p className="text-blue-100 text-sm font-medium mb-2 uppercase tracking-wider">You're Invited To Join</p>
+                    <h1 className="text-3xl sm:text-4xl font-bold mb-3">{tournament?.name || 'Tournament'}</h1>
+                    <p className="text-blue-100 text-base sm:text-lg">{tournament?.location || 'Complete your registration to participate in the auction'}</p>
+                    <div className="mt-4">
+                      {renderStatusBadge()}
+                    </div>
+                  </div>
+                  {tournament?.logo && (
+                    <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-2xl p-3 shadow-lg flex-shrink-0">
+                      <Image
+                        src={tournament.logo}
+                        alt={tournament.name}
+                        fill
+                        className="object-contain p-2"
+                        sizes="96px"
+                      />
+                    </div>
                   )}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-md file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-primary-50 file:text-primary-700
-                      hover:file:bg-primary-100"
-                  />
-                  <p className="text-xs text-gray-500">
-                    JPG or PNG up to 2MB. You can crop the photo after selecting it.
-                  </p>
-                  {imagePreview && (
+              </div>
+            </div>
+          </div>
+
+          {/* Registration Form Card */}
+          <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
+            <div className="p-6 sm:p-10">
+              <div className="mb-8">
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                  {invite.label || 'Player Registration'}
+                </h2>
+                <p className="text-gray-600">Fill in your details to complete your registration</p>
+              </div>
+
+              {successMessage && (
+                <div className="mb-6 bg-green-50 border-l-4 border-green-500 rounded-lg p-4 flex items-start">
+                  <svg className="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm text-green-700 font-medium">{successMessage}</p>
+                </div>
+              )}
+
+              {error && (
+                <div className="mb-6 bg-red-50 border-l-4 border-red-500 rounded-lg p-4 flex items-start">
+                  <svg className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm text-red-700 font-medium">{error}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-8">
+                {/* Player Image Upload Section - Reduced Size */}
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-4 sm:p-6 border-2 border-dashed border-gray-300 hover:border-primary-400 transition-colors">
+                  <label className="block mb-3">
+                    <span className="text-base font-bold text-gray-900 mb-1 block">Profile Photo (Optional)</span>
+                    <span className="text-xs text-gray-600">Add a photo to personalize your profile</span>
+                  </label>
+                  <div className="flex flex-col items-center">
+                    {/* Avatar Preview - Smaller */}
+                    <div
+                      className={`relative w-24 h-24 mb-4 rounded-full overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 shadow-md transition-all duration-300 ${
+                        isDragging ? 'scale-105 ring-4 ring-primary-500' : ''
+                      }`}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                    >
+                      {imagePreview ? (
+                        <img
+                          src={imagePreview}
+                          alt="Profile preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    {/* Upload Button */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
                     <button
                       type="button"
-                      onClick={handleRemoveImage}
-                      className="text-sm text-red-600 hover:text-red-700 text-left"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-primary-600 to-blue-600 text-white text-sm font-semibold rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
                     >
-                      Remove photo
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {imagePreview ? 'Change Photo' : 'Upload Photo'}
                     </button>
-                  )}
+                    {imagePreview && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="mt-2 text-xs text-red-600 hover:text-red-800 font-medium transition-colors"
+                      >
+                        Remove Photo
+                      </button>
+                    )}
+                    <p className="mt-3 text-xs text-gray-500 text-center">
+                      Drag and drop or click to upload<br />
+                      PNG, JPG up to 2MB
+                    </p>
+                  </div>
                 </div>
-              </div>
+
+                {/* Personal Information Section */}
+                <div className="space-y-6">
+                  <h3 className="text-xl font-bold text-gray-900 pb-2 border-b-2 border-gray-200">Personal Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Name */}
+                    <div className="md:col-span-2">
+                      <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Full Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        value={formValues.name}
+                        onChange={handleInputChange}
+                        className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
+                          formErrors.name
+                            ? 'border-red-500 bg-red-50'
+                            : 'border-gray-300 hover:border-primary-400 focus:border-primary-500'
+                        } focus:outline-none focus:ring-2 focus:ring-primary-200`}
+                        placeholder="Enter your full name"
+                      />
+                      {formErrors.name && (
+                        <p className="mt-1.5 text-sm text-red-600 flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          {formErrors.name}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Mobile */}
+                    <div>
+                      <label htmlFor="mobile" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Mobile Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="mobile"
+                        name="mobile"
+                        type="tel"
+                        value={formValues.mobile}
+                        onChange={handleInputChange}
+                        className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
+                          formErrors.mobile
+                            ? 'border-red-500 bg-red-50'
+                            : 'border-gray-300 hover:border-primary-400 focus:border-primary-500'
+                        } focus:outline-none focus:ring-2 focus:ring-primary-200`}
+                        placeholder="10-15 digits"
+                      />
+                      {formErrors.mobile && (
+                        <p className="mt-1.5 text-sm text-red-600 flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          {formErrors.mobile}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Location */}
+                    <div>
+                      <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-2">
+                        City / Location
+                      </label>
+                      <input
+                        id="location"
+                        name="location"
+                        type="text"
+                        value={formValues.location}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-300 hover:border-primary-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all duration-200"
+                        placeholder="Where are you based?"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cricket Information Section */}
+                <div className="space-y-6">
+                  <h3 className="text-xl font-bold text-gray-900 pb-2 border-b-2 border-gray-200">Cricket Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Role - Modern Select */}
+                    <div>
+                      <label htmlFor="role" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Playing Role <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="role"
+                          name="role"
+                          value={formValues.role}
+                          onChange={handleInputChange}
+                          className={`w-full px-4 py-3 pr-10 rounded-xl border-2 transition-all duration-200 appearance-none cursor-pointer bg-white ${
+                            formErrors.role
+                              ? 'border-red-500 bg-red-50'
+                              : 'border-gray-300 hover:border-primary-400 focus:border-primary-500'
+                          } focus:outline-none focus:ring-2 focus:ring-primary-200`}
+                        >
+                          {ROLE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                      {formErrors.role && (
+                        <p className="mt-1.5 text-sm text-red-600 flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          {formErrors.role}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Category - Modern Select with Icons */}
+                    <div>
+                      <label htmlFor="categoryId" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Category <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="categoryId"
+                          name="categoryId"
+                          value={formValues.categoryId}
+                          onChange={handleInputChange}
+                          className={`w-full px-4 py-3 pr-10 rounded-xl border-2 transition-all duration-200 appearance-none cursor-pointer bg-white ${
+                            formErrors.categoryId
+                              ? 'border-red-500 bg-red-50'
+                              : 'border-gray-300 hover:border-primary-400 focus:border-primary-500'
+                          } focus:outline-none focus:ring-2 focus:ring-primary-200`}
+                        >
+                          <option value="">Select Category</option>
+                          {categories.map((cat) => (
+                            <option key={cat._id?.toString()} value={cat._id?.toString()}>
+                              {cat.icon ? `${cat.icon} ${cat.name || 'Unnamed Category'}` : cat.name || 'Unnamed Category'}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                      {formErrors.categoryId && (
+                        <p className="mt-1.5 text-sm text-red-600 flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          {formErrors.categoryId}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Batting Style - Modern Select */}
+                    <div>
+                      <label htmlFor="battingStyle" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Batting Style
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="battingStyle"
+                          name="battingStyle"
+                          value={formValues.battingStyle}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 pr-10 rounded-xl border-2 border-gray-300 hover:border-primary-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all duration-200 appearance-none cursor-pointer bg-white"
+                        >
+                          {BATTING_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bowling Style - Modern Select */}
+                    <div>
+                      <label htmlFor="bowlingStyle" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Bowling Style
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="bowlingStyle"
+                          name="bowlingStyle"
+                          value={formValues.bowlingStyle}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 pr-10 rounded-xl border-2 border-gray-300 hover:border-primary-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all duration-200 appearance-none cursor-pointer bg-white"
+                        >
+                          {BOWLING_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Information Section */}
+                <div className="space-y-6">
+                  <h3 className="text-xl font-bold text-gray-900 pb-2 border-b-2 border-gray-200">Additional Information</h3>
+                  {/* Note */}
+                  <div>
+                    <label htmlFor="note" className="block text-sm font-semibold text-gray-700 mb-2">
+                      Note
+                    </label>
+                    <textarea
+                      id="note"
+                      name="note"
+                      value={formValues.note}
+                      onChange={handleNoteChange}
+                      rows={4}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-300 hover:border-primary-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all duration-200 resize-none"
+                      placeholder="Share any availability issues or additional information we should know"
+                    />
+                    <p className="mt-1.5 text-xs text-gray-500 text-right">
+                      {formValues.note.length}/500 characters
+                    </p>
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <div className="pt-6">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full bg-gradient-to-r from-primary-600 to-blue-600 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
+                  >
+                    {submitting ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        Complete Registration
+                        <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
+          </div>
 
-            <FormInput
-              label="Full Name"
-              name="name"
-              required
-              value={formValues.name}
-              onChange={handleInputChange}
-              error={formErrors.name}
-              touched={!!formErrors.name}
-              placeholder="Enter your full name"
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormInput
-                label="Mobile Number"
-                name="mobile"
-                required
-                value={formValues.mobile}
-                onChange={handleInputChange}
-                error={formErrors.mobile}
-                touched={!!formErrors.mobile}
-                placeholder="10-15 digit mobile number"
-              />
-              <FormInput
-                label="City / Location"
-                name="location"
-                value={formValues.location}
-                onChange={handleInputChange}
-                placeholder="Where are you based?"
-              />
-            </div>
-
-            <FormInput
-              label="Playing Role"
-              name="role"
-              type="select"
-              required
-              value={formValues.role}
-              onChange={handleInputChange}
-              error={formErrors.role}
-              touched={!!formErrors.role}
-              options={ROLE_OPTIONS}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormInput
-                label="Batting Style"
-                name="battingStyle"
-                type="select"
-                value={formValues.battingStyle}
-                onChange={handleInputChange}
-                options={BATTING_OPTIONS}
-              />
-              <FormInput
-                label="Bowling Style"
-                name="bowlingStyle"
-                type="select"
-                value={formValues.bowlingStyle}
-                onChange={handleInputChange}
-                options={BOWLING_OPTIONS}
-              />
-            </div>
-
-            <FormInput
-              label="Category"
-              name="categoryId"
-              type="select"
-              required
-              value={formValues.categoryId}
-              onChange={handleInputChange}
-              error={formErrors.categoryId}
-              touched={!!formErrors.categoryId}
-              options={[
-                { value: '', label: 'Select Category' },
-                ...categories.map((cat) => ({
-                  value: cat._id?.toString(),
-                  label: cat.name || 'Unnamed Category',
-                })),
-              ]}
-            />
-
-            <div>
-              <FormInput
-                label="Note"
-                name="note"
-                type="textarea"
-                value={formValues.note}
-                onChange={handleNoteChange}
-                error={formErrors.note}
-                touched={!!formErrors.note}
-                placeholder="Share any availability issues or additional information we should know (max 500 characters)"
-              />
-              <p className="mt-1 text-right text-xs text-gray-500">
-                {formValues.note.length}/500 characters
-              </p>
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full inline-flex justify-center items-center px-4 py-3 rounded-lg text-white text-base font-semibold bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Submitting...' : 'Submit Details'}
-            </button>
-            <p className="text-xs text-gray-500 text-center">
-              By submitting, you agree to share your information with the tournament organizers.
+          {/* Footer Note */}
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-600">
+              Powered by BiddingCrease • <Link href="/" className="text-primary-600 hover:text-primary-700">Visit home</Link>
             </p>
-          </form>
+          </div>
         </div>
-      </>
+
+        <ImageCropModal
+          isOpen={showCropModal}
+          onClose={handleCropClose}
+          imageFile={imageToCrop}
+          onCropComplete={handleCropComplete}
+          aspectRatio={1}
+        />
+      </div>
     );
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-10 px-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {renderContent()}
-        <div className="text-center text-xs text-gray-400">
-          Powered by BiddingCrease • <Link href="/" className="text-primary-600 hover:text-primary-700">Visit home</Link>
-        </div>
-      </div>
-      <ImageCropModal
-        isOpen={showCropModal}
-        onClose={handleCropClose}
-        imageFile={imageToCrop}
-        onCropComplete={handleCropComplete}
-        aspectRatio={1}
-      />
-    </div>
-  );
+  return renderContent();
 }
-

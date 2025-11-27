@@ -151,6 +151,12 @@ export default function PlayerDetailPage() {
                   <p className="text-xs sm:text-sm text-gray-600">Base Price</p>
                   <p className="text-base sm:text-lg font-bold text-primary-600">{formatCurrency(player.basePrice)}</p>
                 </div>
+                {player.note && (
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600">Note</p>
+                    <p className="text-base sm:text-lg text-gray-900 whitespace-pre-wrap">{player.note}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
