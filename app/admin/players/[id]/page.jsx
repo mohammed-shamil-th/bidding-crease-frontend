@@ -22,7 +22,7 @@ const playerSchema = Yup.object().shape({
     .matches(/^[0-9]{10,15}$/, 'Mobile must be 10-15 digits'),
   location: Yup.string(),
   role: Yup.string()
-    .oneOf(['Batter', 'Bowler', 'All-Rounder'], 'Invalid role')
+    .oneOf(['Batter', 'Bowler', 'All-Rounder', 'Wicket Keeper'], 'Invalid role')
     .required('Role is required'),
   battingStyle: Yup.string().oneOf(['Right', 'Left'], 'Invalid batting style'),
   bowlingStyle: Yup.string().oneOf(
@@ -547,6 +547,7 @@ export default function PlayerDetailPage() {
               { value: 'Batter', label: 'Batter' },
               { value: 'Bowler', label: 'Bowler' },
               { value: 'All-Rounder', label: 'All-Rounder' },
+              { value: 'Wicket Keeper', label: 'Wicket Keeper' },
             ]}
           />
 

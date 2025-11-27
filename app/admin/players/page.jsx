@@ -19,6 +19,21 @@ import ImageCropModal from '@/components/shared/ImageCropModal';
 import { formatCurrency, debounce } from '@/lib/utils';
 import { useToast } from '@/components/shared/Toast';
 
+const PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL || '';
+
+const formatInviteDate = (value) => {
+  if (!value) return '';
+  try {
+    const date = new Date(value);
+    return date.toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
+  } catch (error) {
+    return '';
+  }
+};
+
 // Validation schema
 const playerSchema = Yup.object().shape({
   name: Yup.string()
@@ -29,7 +44,7 @@ const playerSchema = Yup.object().shape({
     .matches(/^[0-9]{10,15}$/, 'Mobile must be 10-15 digits'),
   location: Yup.string(),
   role: Yup.string()
-    .oneOf(['Batter', 'Bowler', 'All-Rounder'], 'Invalid role')
+    .oneOf(['Batter', 'Bowler', 'All-Rounder', 'Wicket Keeper'], 'Invalid role')
     .required('Role is required'),
   battingStyle: Yup.string().oneOf(['Right', 'Left'], 'Invalid batting style'),
   bowlingStyle: Yup.string().oneOf(
@@ -48,6 +63,7 @@ const playerSchema = Yup.object().shape({
     .required('Category is required')
     .typeError('Base price must be a number'),
   tournamentId: Yup.string().required('Tournament is required'),
+  note: Yup.string().max(500, 'Note must be 500 characters or fewer'),
 });
 
 export default function PlayersPage() {
@@ -78,6 +94,14 @@ export default function PlayersPage() {
     total: 0,
     totalPages: 1,
   });
+  const [invites, setInvites] = useState([]);
+  const [invitesLoading, setInvitesLoading] = useState(false);
+  const [copySuccessId, setCopySuccessId] = useState(null);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ label: '', maxUses: '', expiresAt: '' });
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteDeleteConfirm, setInviteDeleteConfirm] = useState({ isOpen: false, inviteId: null, label: '' });
+  const [appOrigin, setAppOrigin] = useState(PUBLIC_APP_URL);
 
   const getCategoryOptionsForFilter = () => {
     if (!tournaments.length) return [];
@@ -134,6 +158,7 @@ export default function PlayersPage() {
     categoryId: '',
     basePrice: '', // Read-only, displayed from category
     tournamentId: '',
+    note: '',
     },
     validationSchema: playerSchema,
     onSubmit: async (values, { setSubmitting, resetForm }) => {
@@ -232,6 +257,20 @@ export default function PlayersPage() {
     }
   };
 
+  const fetchInvites = async () => {
+    if (!selectedTournament) return;
+    try {
+      setInvitesLoading(true);
+      const response = await tournamentAPI.getPlayerInvites(selectedTournament);
+      setInvites(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching invites:', error);
+      showToast(error.response?.data?.message || 'Error fetching invitation links', 'error');
+    } finally {
+      setInvitesLoading(false);
+    }
+  };
+
 
   // Debounced search handler
   const debouncedSearchRef = useRef(
@@ -239,14 +278,37 @@ export default function PlayersPage() {
       setSearchQuery(value);
     }, 500)
   );
+  const copyTimeoutRef = useRef(null);
 
   useEffect(() => {
     debouncedSearchRef.current(searchInput);
   }, [searchInput]);
 
   useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!PUBLIC_APP_URL && typeof window !== 'undefined') {
+      setAppOrigin(window.location.origin);
+    }
+  }, []);
+
+  useEffect(() => {
     fetchPlayers(1, pagination.limit);
   }, [selectedTournament, filter, categoryFilter, sortBy, sortOrder, searchQuery]);
+
+  useEffect(() => {
+    if (selectedTournament) {
+      fetchInvites();
+    } else {
+      setInvites([]);
+    }
+  }, [selectedTournament]);
 
   useEffect(() => {
     if (tournaments.length > 0 && !formik.values.tournamentId && selectedTournament) {
@@ -305,6 +367,95 @@ export default function PlayersPage() {
     fetchPlayers(1, newLimit);
   };
 
+  const getInviteUrl = (token) => {
+    if (!appOrigin) return '';
+    return `${appOrigin.replace(/\/$/, '')}/invite/${token}`;
+  };
+
+  const handleCopyInvite = async (invite) => {
+    const inviteUrl = getInviteUrl(invite.token);
+    if (!inviteUrl) {
+      showToast('Unable to copy link. Missing site URL.', 'error');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopySuccessId(invite._id);
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = setTimeout(() => setCopySuccessId(null), 2000);
+      showToast('Invite link copied!', 'success');
+    } catch (error) {
+      console.error('Copy invite error:', error);
+      showToast('Unable to copy link', 'error');
+    }
+  };
+
+  const handleInviteSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedTournament) return;
+
+    const payload = {};
+    const trimmedLabel = inviteForm.label.trim();
+    if (trimmedLabel) {
+      payload.label = trimmedLabel;
+    }
+    if (inviteForm.maxUses) {
+      const parsed = Number(inviteForm.maxUses);
+      if (Number.isNaN(parsed) || parsed <= 0) {
+        showToast('Max uses must be a positive number', 'error');
+        return;
+      }
+      payload.maxUses = parsed;
+    }
+    if (inviteForm.expiresAt) {
+      payload.expiresAt = inviteForm.expiresAt;
+    }
+
+    try {
+      setInviteSubmitting(true);
+      await tournamentAPI.createPlayerInvite(selectedTournament, payload);
+      showToast('Invite link created!', 'success');
+      setInviteModalOpen(false);
+      setInviteForm({ label: '', maxUses: '', expiresAt: '' });
+      fetchInvites();
+    } catch (error) {
+      console.error('Create invite error:', error);
+      showToast(error.response?.data?.message || 'Error creating invite', 'error');
+    } finally {
+      setInviteSubmitting(false);
+    }
+  };
+
+  const handleToggleInvite = async (inviteId) => {
+    if (!selectedTournament) return;
+    try {
+      await tournamentAPI.togglePlayerInvite(selectedTournament, inviteId);
+      fetchInvites();
+      showToast('Invite status updated', 'success');
+    } catch (error) {
+      console.error('Toggle invite error:', error);
+      showToast(error.response?.data?.message || 'Error updating invite', 'error');
+    }
+  };
+
+  const confirmInviteDelete = async () => {
+    if (!inviteDeleteConfirm.inviteId || !selectedTournament) return;
+    try {
+      await tournamentAPI.deletePlayerInvite(
+        selectedTournament,
+        inviteDeleteConfirm.inviteId
+      );
+      showToast('Invite deleted', 'success');
+      setInviteDeleteConfirm({ isOpen: false, inviteId: null, label: '' });
+      fetchInvites();
+    } catch (error) {
+      console.error('Delete invite error:', error);
+      showToast(error.response?.data?.message || 'Error deleting invite', 'error');
+    }
+  };
+
   const handleEdit = (player) => {
     setEditingPlayer(player);
     setImagePreview(player.image || '');
@@ -336,6 +487,7 @@ export default function PlayersPage() {
         categoryId: player.categoryId ? player.categoryId.toString() : '',
         basePrice: basePrice,
         tournamentId: tournamentId,
+        note: player.note || '',
         // For sold players, allow editing sale details
         soldPrice: player.soldPrice ? player.soldPrice.toString() : '',
         soldTo: player.soldTo?._id || player.soldTo || '',
@@ -388,6 +540,10 @@ export default function PlayersPage() {
     setImagePreview('');
     formik.resetForm();
   };
+
+  const selectedTournamentDetails = selectedTournament
+    ? tournaments.find((t) => t._id === selectedTournament)
+    : null;
 
   // Memoized table rows to prevent re-rendering on search
   const TableRows = memo(({ players, onEdit, onDelete, onImageClick }) => {
@@ -536,6 +692,96 @@ export default function PlayersPage() {
             Add Player
           </button>
         </div>
+      </div>
+
+      <div className="bg-white shadow rounded-lg p-6 mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Player Invitation Links</h2>
+            <p className="text-sm text-gray-500">
+              Share a public link so players can self-register for{' '}
+              {selectedTournamentDetails ? selectedTournamentDetails.name : 'the selected tournament'}.
+            </p>
+          </div>
+          <button
+            onClick={() => setInviteModalOpen(true)}
+            disabled={!selectedTournament}
+            className="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Create Invite Link
+          </button>
+        </div>
+        {!selectedTournament ? (
+          <p className="mt-4 text-sm text-gray-500">
+            Select a tournament to manage invitation links.
+          </p>
+        ) : invitesLoading ? (
+          <p className="mt-4 text-sm text-gray-500">Loading invitation links...</p>
+        ) : invites.length === 0 ? (
+          <div className="mt-4 border border-dashed border-gray-300 rounded-md p-4 text-sm text-gray-500">
+            No invitation links yet. Create one to allow players to register themselves.
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {invites.map((invite) => {
+              return (
+                <div
+                  key={invite._id}
+                  className="border border-gray-200 rounded-lg p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-900 truncate">{invite.label}</p>
+                      <span
+                        className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                          invite.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {invite.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    {/* <p className="text-sm text-gray-500">
+                      Link hidden here. Use the copy link button to share with players.
+                    </p> */}
+                    <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-1">
+                      <span>
+                        Usage: {invite.usageCount}
+                        {invite.maxUses ? ` / ${invite.maxUses}` : ''}
+                      </span>
+                      {invite.expiresAt && (
+                        <span>
+                          Expires {new Date(invite.expiresAt).toLocaleDateString()}
+                        </span>
+                      )}
+                      {invite.lastUsedAt && (
+                        <span>Last used {formatInviteDate(invite.lastUsedAt)}</span>
+                      )}
+                      {!invite.isActive && invite.deactivatedAt && (
+                        <span>Deactivated {formatInviteDate(invite.deactivatedAt)}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleCopyInvite(invite)}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    >
+                      {copySuccessId === invite._id ? 'Copied!' : 'Copy Link'}
+                    </button>
+                    <button
+                      onClick={() =>
+                        setInviteDeleteConfirm({ isOpen: true, inviteId: invite._id, label: invite.label })
+                      }
+                      className="px-3 py-1.5 text-sm rounded-md text-white bg-red-600 hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -693,6 +939,7 @@ export default function PlayersPage() {
               { value: 'Batter', label: 'Batter' },
               { value: 'Bowler', label: 'Bowler' },
               { value: 'All-Rounder', label: 'All-Rounder' },
+              { value: 'Wicket Keeper', label: 'Wicket Keeper' },
             ]}
           />
 
@@ -802,6 +1049,27 @@ export default function PlayersPage() {
             </>
           )}
 
+          <div className="border-t pt-4 mt-4">
+            <FormInput
+              label="Player Note"
+              name="note"
+              type="textarea"
+              value={formik.values.note}
+              onChange={(e) => {
+                if (e.target.value.length <= 500) {
+                  formik.handleChange(e);
+                }
+              }}
+              onBlur={formik.handleBlur}
+              error={formik.errors.note}
+              touched={formik.touched.note}
+              placeholder="Share additional details (max 500 characters)"
+            />
+            <p className="text-xs text-gray-500 text-right mt-1">
+              {formik.values.note.length}/500 characters
+            </p>
+          </div>
+
           <div className="flex justify-end space-x-3 pt-4 border-t">
             <button
               type="button"
@@ -820,6 +1088,77 @@ export default function PlayersPage() {
           </div>
         </form>
       </Modal>
+
+      <Modal
+        isOpen={inviteModalOpen}
+        onClose={() => {
+          setInviteModalOpen(false);
+          setInviteForm({ label: '', maxUses: '', expiresAt: '' });
+        }}
+        title="Create Player Invitation"
+      >
+        <form onSubmit={handleInviteSubmit} className="space-y-4">
+          <FormInput
+            label="Link Label"
+            name="inviteLabel"
+            type="text"
+            value={inviteForm.label}
+            onChange={(e) => setInviteForm((prev) => ({ ...prev, label: e.target.value }))}
+            placeholder="e.g., Open Registration"
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormInput
+              label="Max Uses (optional)"
+              name="inviteMaxUses"
+              type="number"
+              min="1"
+              value={inviteForm.maxUses}
+              onChange={(e) => setInviteForm((prev) => ({ ...prev, maxUses: e.target.value }))}
+              placeholder="Leave blank for unlimited"
+            />
+            <FormInput
+              label="Expires On (optional)"
+              name="inviteExpiresAt"
+              type="date"
+              value={inviteForm.expiresAt}
+              onChange={(e) => setInviteForm((prev) => ({ ...prev, expiresAt: e.target.value }))}
+            />
+          </div>
+          <p className="text-sm text-gray-500">
+            Players who receive this link will see the {selectedTournamentDetails?.name || 'tournament'} name and can submit their details without choosing a tournament.
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={() => {
+                setInviteModalOpen(false);
+                setInviteForm({ label: '', maxUses: '', expiresAt: '' });
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={inviteSubmitting || !selectedTournament}
+              className="px-4 py-2 rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {inviteSubmitting ? 'Creating...' : 'Create Link'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmationModal
+        isOpen={inviteDeleteConfirm.isOpen}
+        onClose={() => setInviteDeleteConfirm({ isOpen: false, inviteId: null, label: '' })}
+        onConfirm={confirmInviteDelete}
+        title="Delete Invitation Link"
+        message={`Delete the invite "${inviteDeleteConfirm.label}"? Players will no longer be able to use it.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
 
       <ConfirmationModal
         isOpen={deleteConfirm.isOpen}
