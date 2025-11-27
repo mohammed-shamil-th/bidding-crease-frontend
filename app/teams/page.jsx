@@ -267,7 +267,7 @@ export default function TeamsPage() {
                         </Link>
                         <p className="text-white/90 text-sm sm:text-base">Owner: {team.owner}</p>
                       </div>
-                      <button
+                      {/* <button
                         type="button"
                         onClick={() => handleOpenPdfModal(team)}
                         className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white/15 border border-white/30 text-white text-sm font-semibold shadow-lg shadow-black/10 hover:bg-white/25 transition-all"
@@ -283,7 +283,7 @@ export default function TeamsPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M7 10l5 5m0 0l5-5m-5 5V3" />
                         </svg>
                         <span>Download PDF</span>
-                      </button>
+                      </button> */}
                     </div>
                   </div>
 
