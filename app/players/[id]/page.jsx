@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { playerAPI } from '@/lib/api';
-import { formatCurrency } from '@/lib/utils';
+import { playerAPI, tournamentAPI } from '@/lib/api';
+import { formatCurrency, getCategoryIcon } from '@/lib/utils';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import Link from 'next/link';
@@ -12,6 +12,7 @@ import UserHeader from '@/components/shared/UserHeader';
 export default function PlayerDetailPage() {
   const params = useParams();
   const [player, setPlayer] = useState(null);
+  const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showImageViewer, setShowImageViewer] = useState(false);
 
@@ -25,7 +26,19 @@ export default function PlayerDetailPage() {
     try {
       setLoading(true);
       const response = await playerAPI.getById(params.id);
-      setPlayer(response.data.data);
+      const playerData = response.data.data;
+      setPlayer(playerData);
+
+      // Fetch tournament to get categories
+      if (playerData.tournamentId) {
+        const tournamentId = playerData.tournamentId._id || playerData.tournamentId;
+        try {
+          const tournamentResponse = await tournamentAPI.getById(tournamentId);
+          setTournament(tournamentResponse.data.data);
+        } catch (error) {
+          console.error('Error fetching tournament:', error);
+        }
+      }
     } catch (error) {
       console.error('Error fetching player details:', error);
     } finally {
@@ -123,16 +136,27 @@ export default function PlayerDetailPage() {
                 <div>
                   <p className="text-xs sm:text-sm text-gray-600">Category</p>
                   <div className="flex items-center space-x-2">
+                    {(() => {
+                      const categoryIcon = getCategoryIcon(player, tournament);
+                      return categoryIcon ? (
+                        <span className="text-lg sm:text-xl flex-shrink-0" role="img" aria-label={player.category || 'Category icon'} title={player.category}>
+                          {categoryIcon}
+                        </span>
+                      ) : null;
+                    })()}
                     <p className="text-base sm:text-lg font-medium text-gray-900">{player.category}</p>
-                    {player.category === 'Icon' && (
-                      <span className="text-yellow-500 text-lg sm:text-xl flex-shrink-0" title="Icon Player">⭐</span>
-                    )}
                   </div>
                 </div>
                 <div>
                   <p className="text-xs sm:text-sm text-gray-600">Base Price</p>
                   <p className="text-base sm:text-lg font-bold text-primary-600">{formatCurrency(player.basePrice)}</p>
                 </div>
+                {player.note && (
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600">Note</p>
+                    <p className="text-base sm:text-lg text-gray-900 whitespace-pre-wrap">{player.note}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

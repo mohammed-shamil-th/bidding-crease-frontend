@@ -14,6 +14,7 @@ import EmptyState from '@/components/shared/EmptyState';
 import TableSkeleton from '@/components/shared/TableSkeleton';
 import ImageCropModal from '@/components/shared/ImageCropModal';
 import { formatDate } from '@/lib/utils';
+import { useToast } from '@/components/shared/Toast';
 
 // Validation schema
 const tournamentSchema = Yup.object().shape({
@@ -67,7 +68,7 @@ export default function TournamentsPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTournament, setEditingTournament] = useState(null);
-  const [submitError, setSubmitError] = useState('');
+  const { showToast } = useToast();
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, name: '' });
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState('');
@@ -97,7 +98,6 @@ export default function TournamentsPage() {
     validationSchema: tournamentSchema,
     onSubmit: async (values, { setSubmitting, resetForm }) => {
       try {
-        setSubmitError('');
         const formData = new FormData();
         
         Object.keys(values).forEach((key) => {
@@ -116,8 +116,10 @@ export default function TournamentsPage() {
 
         if (editingTournament) {
           await tournamentAPI.update(editingTournament._id, formData);
+          showToast('Tournament updated successfully!', 'success');
         } else {
           await tournamentAPI.create(formData);
+          showToast('Tournament created successfully!', 'success');
         }
         
         setIsModalOpen(false);
@@ -128,7 +130,7 @@ export default function TournamentsPage() {
         fetchTournaments(pagination.page, pagination.limit);
       } catch (error) {
         console.error('Error saving tournament:', error);
-        setSubmitError(error.response?.data?.message || 'Error saving tournament');
+        showToast(error.response?.data?.message || 'Error saving tournament', 'error');
         // Set field errors if provided by backend
         if (error.response?.data?.errors) {
           Object.keys(error.response.data.errors).forEach((key) => {
@@ -194,7 +196,6 @@ export default function TournamentsPage() {
 
   const handleEdit = (tournament) => {
     setEditingTournament(tournament);
-    setSubmitError('');
     setLogoFile(null);
     setLogoPreview(tournament.logo || '');
     formik.setValues({
@@ -224,7 +225,7 @@ export default function TournamentsPage() {
       fetchTournaments(pagination.page, pagination.limit);
     } catch (error) {
       console.error('Error deleting tournament:', error);
-      alert(error.response?.data?.message || 'Error deleting tournament');
+      showToast(error.response?.data?.message || 'Error deleting tournament', 'error');
       setDeleteConfirm({ isOpen: false, id: null, name: '' });
     }
   };
@@ -232,7 +233,6 @@ export default function TournamentsPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingTournament(null);
-    setSubmitError('');
     setLogoFile(null);
     setLogoPreview('');
     formik.resetForm();
@@ -250,7 +250,6 @@ export default function TournamentsPage() {
         <button
           onClick={() => {
             setEditingTournament(null);
-            setSubmitError('');
             formik.resetForm();
             setIsModalOpen(true);
           }}
@@ -336,11 +335,6 @@ export default function TournamentsPage() {
         title={editingTournament ? 'Edit Tournament' : 'Add Tournament'}
       >
         <form onSubmit={formik.handleSubmit} className="space-y-4">
-          {submitError && (
-            <div className="rounded-md bg-red-50 p-4 mb-4">
-              <div className="text-sm text-red-700">{submitError}</div>
-            </div>
-          )}
 
           <FormInput
             label="Name"

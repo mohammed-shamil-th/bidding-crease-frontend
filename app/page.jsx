@@ -3,12 +3,21 @@
 import { useEffect, useState } from 'react';
 import { tournamentAPI, auctionAPI, teamAPI, playerAPI } from '@/lib/api';
 import useAuctionSocket from '@/components/socket/AuctionSocket';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getCategoryIcon } from '@/lib/utils';
 import Link from 'next/link';
 import Image from 'next/image';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
 import UserHeader from '@/components/shared/UserHeader';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
+import { useToast } from '@/components/shared/Toast';
+
+// Helper to format currency with negative styling
+const formatCurrencyWithNegative = (amount) => {
+  if (amount < 0) {
+    return <span className="text-red-600 font-semibold">-{formatCurrency(Math.abs(amount))}</span>;
+  }
+  return formatCurrency(amount);
+};
 
 export default function HomePage() {
   const [tournaments, setTournaments] = useState([]);
@@ -18,8 +27,8 @@ export default function HomePage() {
   const [lastPlayersLimit, setLastPlayersLimit] = useState(5);
   const [hasMorePlayers, setHasMorePlayers] = useState(false);
   const [currentBidTeam, setCurrentBidTeam] = useState(null);
-  const [notification, setNotification] = useState(null);
   const [maxBids, setMaxBids] = useState({});
+  const { showToast } = useToast();
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
 
@@ -39,16 +48,17 @@ export default function HomePage() {
     }
     // Handle player sold/unsold
     if (data.type === 'sold' || data.type === 'unsold') {
-      setNotification({
-        type: data.type,
-        playerName: data.playerName,
-        teamName: data.teamName,
-        price: data.price,
-      });
+      if (data.type === 'sold') {
+        showToast(
+          `${data.playerName} SOLD to ${data.teamName} for ${formatCurrency(data.price)}!`,
+          'success',
+          5000
+        );
+      } else {
+        showToast(`${data.playerName} marked as UNSOLD`, 'info', 4000);
+      }
       // Fetch last 5 players
       fetchLastPlayers();
-      // Clear notification after 5 seconds
-      setTimeout(() => setNotification(null), 5000);
     }
     // Handle new player selected
     if (data.type === 'playerSelected') {
@@ -151,6 +161,10 @@ export default function HomePage() {
     fetchLastPlayers(newLimit);
   };
 
+  const selectedTournamentData = selectedTournament
+    ? tournaments.find((t) => t._id === selectedTournament)
+    : null;
+
   const fetchCurrentAuction = async () => {
     try {
       const response = await auctionAPI.getCurrent(selectedTournament);
@@ -186,34 +200,31 @@ export default function HomePage() {
               <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
                 Select Tournament
               </label>
-              {selectedTournament ? (() => {
-                const selectedTournamentData = tournaments.find(t => t._id === selectedTournament);
-                return (
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="flex items-center gap-3">
-                      {selectedTournamentData?.logo ? (
-                        <div className="relative w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
-                          <Image
-                            src={selectedTournamentData.logo}
-                            alt={selectedTournamentData.name || 'Tournament Logo'}
-                            fill
-                            className="object-contain rounded-lg"
-                            sizes="(max-width: 640px) 48px, 56px"
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-2xl sm:text-3xl flex-shrink-0">🏆</span>
-                      )}
-                      <h3 className="text-2xl sm:text-3xl font-bold text-primary-700">
-                        {selectedTournamentData?.name || 'Tournament'}
-                      </h3>
-                    </div>
-                    <span className="px-3 py-1.5 text-xs font-semibold rounded-full bg-white/80 backdrop-blur-sm text-primary-700 border border-primary-200 shadow-sm">
-                      {selectedTournamentData?.status || ''}
-                    </span>
+              {selectedTournament ? (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    {selectedTournamentData?.logo ? (
+                      <div className="relative w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
+                        <Image
+                          src={selectedTournamentData.logo}
+                          alt={selectedTournamentData.name || 'Tournament Logo'}
+                          fill
+                          className="object-contain rounded-lg"
+                          sizes="(max-width: 640px) 48px, 56px"
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-2xl sm:text-3xl flex-shrink-0">🏆</span>
+                    )}
+                    <h3 className="text-2xl sm:text-3xl font-bold text-primary-700">
+                      {selectedTournamentData?.name || 'Tournament'}
+                    </h3>
                   </div>
-                );
-              })() : (
+                  <span className="px-3 py-1.5 text-xs font-semibold rounded-full bg-white/80 backdrop-blur-sm text-primary-700 border border-primary-200 shadow-sm">
+                    {selectedTournamentData?.status || ''}
+                  </span>
+                </div>
+              ) : (
                 <p className="text-lg sm:text-xl font-semibold text-gray-400 italic">
                   No tournament selected
                 </p>
@@ -272,11 +283,21 @@ export default function HomePage() {
                         <Link href={`/players/${currentPlayer._id}`} className="text-3xl sm:text-4xl font-bold text-gray-900 hover:text-primary-600 break-words transition-colors">
                           {currentPlayer.name}
                         </Link>
-                        {currentPlayer.category === 'Icon' && (
-                          <span className="text-yellow-500 text-2xl sm:text-3xl flex-shrink-0" title="Icon Player">⭐</span>
-                        )}
+                        {(() => {
+                          const categoryIcon = getCategoryIcon(currentPlayer, selectedTournamentData);
+                          return categoryIcon ? (
+                            <span className="text-2xl sm:text-3xl flex-shrink-0" role="img" aria-label={currentPlayer.category || 'Category icon'} title={currentPlayer.category}>
+                              {categoryIcon}
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                       <p className="text-xl sm:text-2xl text-gray-600 font-medium mb-2">{currentPlayer.role}</p>
+                      {currentPlayer.category && (
+                        <p className="text-base sm:text-lg font-semibold text-primary-600 mb-2">
+                          Category: {currentPlayer.category}
+                        </p>
+                      )}
                       <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
                         {currentPlayer.battingStyle && (
                           <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
@@ -292,16 +313,34 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div className="border-t border-gray-200 pt-6 space-y-4">
+                    {currentPlayer.category && (
+                      <div className="flex justify-between items-center py-2 px-4 bg-gray-50 rounded-xl">
+                        <span className="text-sm font-medium text-gray-600">Category</span>
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const categoryIcon = getCategoryIcon(currentPlayer, selectedTournamentData);
+                            return categoryIcon ? (
+                              <span className="text-lg" role="img" aria-label={currentPlayer.category || 'Category icon'}>
+                                {categoryIcon}
+                              </span>
+                            ) : null;
+                          })()}
+                          <span className="text-xs font-mono text-gray-700">
+                            {currentPlayer?.category}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex justify-between items-center py-3 px-4 bg-gray-50 rounded-xl">
                       <span className="text-base font-medium text-gray-600">Base Price</span>
                       <span className="text-xl font-bold text-gray-900">
-                        {formatCurrency(currentPlayer.basePrice)}
+                        {formatCurrency(currentPlayer.basePrice || 0)}
                       </span>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 py-4 px-5 bg-gradient-to-r from-primary-50 to-blue-50 rounded-xl border-2 border-primary-200">
                       <span className="text-xl sm:text-2xl font-bold text-gray-700">Current Bid</span>
                       <span className="text-4xl sm:text-5xl font-bold text-primary-600 transition-all duration-300 transform hover:scale-105">
-                        {formatCurrency(currentBidPrice || currentPlayer.basePrice)}
+                        {formatCurrency(currentBidPrice || currentPlayer.basePrice || 0)}
                       </span>
                     </div>
                     {currentBidTeam && (
@@ -322,35 +361,6 @@ export default function HomePage() {
                 </div>
               )}
               
-              {/* Notification - Enhanced */}
-              {notification && (
-                <div
-                  className={`mt-6 p-5 rounded-xl border-2 shadow-md ${
-                    notification.type === 'sold'
-                      ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300'
-                      : 'bg-gray-50 border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-lg font-bold text-gray-900 mb-1">{notification.playerName}</p>
-                      {notification.type === 'sold' ? (
-                        <p className="text-sm font-medium text-green-700">
-                          ✅ SOLD to <span className="font-bold">{notification.teamName}</span> for {formatCurrency(notification.price)}
-                        </p>
-                      ) : (
-                        <p className="text-sm font-medium text-gray-700">❌ UNSOLD</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setNotification(null)}
-                      className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* Recent Players - Enhanced */}
               {lastPlayers.length > 0 && (
@@ -383,9 +393,14 @@ export default function HomePage() {
                               <Link href={`/players/${player._id}`} className="text-sm font-semibold text-gray-900 hover:text-primary-600 truncate">
                                 {player.name}
                               </Link>
-                              {player.category === 'Icon' && (
-                                <span className="text-yellow-500 text-sm flex-shrink-0" title="Icon Player">⭐</span>
-                              )}
+                              {(() => {
+                                const categoryIcon = getCategoryIcon(player, selectedTournamentData);
+                                return categoryIcon ? (
+                                  <span className="text-sm flex-shrink-0" role="img" aria-label={player.category || 'Category icon'} title={player.category}>
+                                    {categoryIcon}
+                                  </span>
+                                ) : null;
+                              })()}
                             </div>
                             <p className="text-xs text-gray-600 font-medium">{player.role}</p>
                             {player.location && (
@@ -473,7 +488,7 @@ export default function HomePage() {
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-gray-600 font-medium">Balance</span>
                               <span className="text-sm font-bold text-gray-900">
-                                {formatCurrency(team.remainingAmount)}
+                                {formatCurrencyWithNegative(team.remainingAmount)}
                               </span>
                             </div>
                             {maxBids[team._id] !== undefined && (

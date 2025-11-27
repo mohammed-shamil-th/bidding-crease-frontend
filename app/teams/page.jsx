@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { teamAPI, tournamentAPI, playerAPI } from '@/lib/api';
-import { formatCurrency } from '@/lib/utils';
+import { teamAPI, tournamentAPI } from '@/lib/api';
+import { formatCurrency, getCategoryIcon } from '@/lib/utils';
 import Link from 'next/link';
 import Image from 'next/image';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
@@ -18,6 +18,8 @@ export default function TeamsPage() {
   const [loading, setLoading] = useState(true);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
+  const [pdfModalTeam, setPdfModalTeam] = useState(null);
+  const [downloadingTeamId, setDownloadingTeamId] = useState(null);
 
   useEffect(() => {
     fetchTournaments();
@@ -65,6 +67,41 @@ export default function TeamsPage() {
       console.error('Error fetching teams:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenPdfModal = (team) => {
+    setPdfModalTeam(team);
+  };
+
+  const handleClosePdfModal = () => {
+    if (downloadingTeamId) return;
+    setPdfModalTeam(null);
+  };
+
+  const handleDownloadTeamPdf = async (includePrices) => {
+    if (!pdfModalTeam) return;
+    try {
+      setDownloadingTeamId(pdfModalTeam._id);
+      const response = await teamAPI.downloadTeamReport(pdfModalTeam._id, includePrices);
+      if (typeof window === 'undefined') return;
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const suffix = includePrices ? 'with-prices' : 'players';
+      link.href = url;
+      link.download = `${pdfModalTeam.name?.replace(/\s+/g, '_') || 'team'}_${suffix}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setPdfModalTeam(null);
+    } catch (error) {
+      console.error('Error downloading team PDF:', error);
+      alert('Unable to download the PDF right now. Please try again.');
+    } finally {
+      setDownloadingTeamId(null);
     }
   };
 
@@ -221,12 +258,33 @@ export default function TeamsPage() {
                 >
                   {/* Team Header - Colored Background */}
                   <div className={`${headerColor} p-6 text-white`}>
-                    <Link href={`/teams/${team._id}`} className="block">
-                      <h2 className="text-2xl sm:text-3xl font-bold mb-2 hover:opacity-90 transition-opacity">
-                        {team.name}
-                      </h2>
-                    </Link>
-                    <p className="text-white/90 text-sm sm:text-base">Owner: {team.owner}</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div>
+                        <Link href={`/teams/${team._id}`} className="block">
+                          <h2 className="text-2xl sm:text-3xl font-bold mb-1 hover:opacity-90 transition-opacity">
+                            {team.name}
+                          </h2>
+                        </Link>
+                        <p className="text-white/90 text-sm sm:text-base">Owner: {team.owner}</p>
+                      </div>
+                      {/* <button
+                        type="button"
+                        onClick={() => handleOpenPdfModal(team)}
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white/15 border border-white/30 text-white text-sm font-semibold shadow-lg shadow-black/10 hover:bg-white/25 transition-all"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 14v5a2 2 0 01-2 2H7a2 2 0 01-2-2v-5" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 10l5 5m0 0l5-5m-5 5V3" />
+                        </svg>
+                        <span>Download PDF</span>
+                      </button> */}
+                    </div>
                   </div>
 
                   {/* Budget Section */}
@@ -300,9 +358,15 @@ export default function TeamsPage() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1">
                                   <p className="text-sm font-semibold text-gray-900 truncate">{player.name}</p>
-                                  {player.category === 'Icon' && (
-                                    <span className="text-yellow-500 text-sm flex-shrink-0">⭐</span>
-                                  )}
+                                  {(() => {
+                                    const tournament = tournaments.find(t => t._id === selectedTournament);
+                                    const categoryIcon = getCategoryIcon(player, tournament);
+                                    return categoryIcon ? (
+                                      <span className="text-sm flex-shrink-0" role="img" aria-label={player.category || 'Category icon'} title={player.category}>
+                                        {categoryIcon}
+                                      </span>
+                                    ) : null;
+                                  })()}
                                 </div>
                                 <p className="text-xs text-gray-600">{player.role}</p>
                               </div>
@@ -324,6 +388,72 @@ export default function TeamsPage() {
           </div>
         )}
       </main>
+
+      {pdfModalTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <div
+            className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+            onClick={handleClosePdfModal}
+          ></div>
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 sm:p-7 border border-gray-100">
+            <button
+              onClick={handleClosePdfModal}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close"
+              disabled={!!downloadingTeamId}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="mb-5">
+              <p className="text-lg font-semibold text-gray-900">Download "{pdfModalTeam.name}" Squad</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Choose what details to include in the PDF. Files are generated instantly with premium formatting.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => handleDownloadTeamPdf(true)}
+                disabled={downloadingTeamId === pdfModalTeam._id}
+                className="w-full inline-flex items-center justify-between gap-2 px-4 py-3 rounded-2xl bg-primary-600 text-white text-sm font-semibold shadow-lg shadow-primary-600/30 hover:bg-primary-700 transition disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                <span>Include Prices</span>
+                {downloadingTeamId === pdfModalTeam._id ? (
+                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                  </svg>
+                ) : (
+                  <span className="text-white/90 text-xs">Player list + prices</span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownloadTeamPdf(false)}
+                disabled={downloadingTeamId === pdfModalTeam._id}
+                className="w-full inline-flex items-center justify-between gap-2 px-4 py-3 rounded-2xl border border-gray-200 text-sm font-semibold text-gray-800 bg-white hover:border-gray-300 transition disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                <span>Player List Only</span>
+                <span className="text-gray-500 text-xs">Names + roles</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleClosePdfModal}
+                disabled={downloadingTeamId === pdfModalTeam._id}
+                className="w-full text-sm font-semibold text-gray-500 hover:text-gray-700 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ImageViewerModal
         isOpen={showImageViewer}

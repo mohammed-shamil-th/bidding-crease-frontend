@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { teamAPI, playerAPI, tournamentAPI } from '@/lib/api';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getCategoryIcon } from '@/lib/utils';
+import { useToast } from '@/components/shared/Toast';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import Modal from '@/components/shared/Modal';
@@ -17,7 +18,8 @@ export default function TeamDetailPage() {
   const [loading, setLoading] = useState(true);
   const [soldEditModal, setSoldEditModal] = useState({ isOpen: false, player: null });
   const [teams, setTeams] = useState([]);
-  const [submitError, setSubmitError] = useState('');
+  const [tournament, setTournament] = useState(null);
+  const { showToast } = useToast();
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
 
@@ -51,6 +53,17 @@ export default function TeamDetailPage() {
       const response = await teamAPI.getById(params.id);
       const teamData = response.data.data;
       setTeam(teamData);
+
+      // Fetch tournament to get categories
+      if (teamData.tournamentId) {
+        const tournamentId = teamData.tournamentId._id || teamData.tournamentId;
+        try {
+          const tournamentResponse = await tournamentAPI.getById(tournamentId);
+          setTournament(tournamentResponse.data.data);
+        } catch (error) {
+          console.error('Error fetching tournament:', error);
+        }
+      }
 
       // Players are already populated from backend
       if (teamData.players && teamData.players.length > 0) {
@@ -95,19 +108,19 @@ export default function TeamDetailPage() {
 
   const handleSoldEdit = async (soldPrice, soldTo) => {
     try {
-      setSubmitError('');
       const formData = new FormData();
       formData.append('soldPrice', soldPrice || '');
       formData.append('soldTo', soldTo || '');
       
       await playerAPI.update(soldEditModal.player._id, formData);
+      showToast('Player sale details updated successfully!', 'success');
       setSoldEditModal({ isOpen: false, player: null });
       // Refresh team details to get updated amounts and player counts
       fetchTeamDetails();
       fetchAllTeams();
     } catch (error) {
       console.error('Error updating sold player:', error);
-      setSubmitError(error.response?.data?.message || 'Error updating sold player');
+      showToast(error.response?.data?.message || 'Error updating sold player', 'error');
     }
   };
 
@@ -193,9 +206,14 @@ export default function TeamDetailPage() {
                       <div>
                         <div className="flex items-center space-x-2">
                           <p className="text-lg font-bold text-gray-900">{player.name}</p>
-                          {player.category === 'Icon' && (
-                            <span className="text-yellow-500" title="Icon Player">⭐</span>
-                          )}
+                          {(() => {
+                            const categoryIcon = getCategoryIcon(player, tournament);
+                            return categoryIcon ? (
+                              <span className="text-lg" role="img" aria-label={player.category || 'Category icon'} title={player.category}>
+                                {categoryIcon}
+                              </span>
+                            ) : null;
+                          })()}
                         </div>
                         <p className="text-sm text-gray-600">{player.role}</p>
                         <p className="text-xs text-gray-500">{player.category}</p>
@@ -241,7 +259,6 @@ export default function TeamDetailPage() {
         isOpen={soldEditModal.isOpen}
         onClose={() => {
           setSoldEditModal({ isOpen: false, player: null });
-          setSubmitError('');
         }}
         title="Edit Sold Player Details"
       >
@@ -250,11 +267,9 @@ export default function TeamDetailPage() {
             player={soldEditModal.player}
             teams={teams}
             onSave={handleSoldEdit}
-            onCancel={() => {
-              setSoldEditModal({ isOpen: false, player: null });
-              setSubmitError('');
-            }}
-            error={submitError}
+        onCancel={() => {
+          setSoldEditModal({ isOpen: false, player: null });
+        }}
           />
         )}
       </Modal>
@@ -270,7 +285,7 @@ export default function TeamDetailPage() {
 }
 
 // Sold Player Edit Form Component
-function SoldPlayerEditForm({ player, teams, onSave, onCancel, error }) {
+function SoldPlayerEditForm({ player, teams, onSave, onCancel }) {
   const [soldPrice, setSoldPrice] = useState(player.soldPrice?.toString() || '');
   const [soldTo, setSoldTo] = useState(player.soldTo?._id || player.soldTo || '');
   const [loading, setLoading] = useState(false);
@@ -287,12 +302,6 @@ function SoldPlayerEditForm({ player, teams, onSave, onCancel, error }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 mb-4">
-          <div className="text-sm text-red-700">{error}</div>
-        </div>
-      )}
-
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Player Name

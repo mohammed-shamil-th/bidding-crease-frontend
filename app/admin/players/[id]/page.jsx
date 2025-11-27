@@ -11,6 +11,7 @@ import Modal from '@/components/shared/Modal';
 import FormInput from '@/components/shared/FormInput';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import { useToast } from '@/components/shared/Toast';
 
 const playerSchema = Yup.object().shape({
   name: Yup.string()
@@ -21,7 +22,7 @@ const playerSchema = Yup.object().shape({
     .matches(/^[0-9]{10,15}$/, 'Mobile must be 10-15 digits'),
   location: Yup.string(),
   role: Yup.string()
-    .oneOf(['Batter', 'Bowler', 'All-Rounder'], 'Invalid role')
+    .oneOf(['Batter', 'Bowler', 'All-Rounder', 'Wicket Keeper'], 'Invalid role')
     .required('Role is required'),
   battingStyle: Yup.string().oneOf(['Right', 'Left'], 'Invalid batting style'),
   bowlingStyle: Yup.string().oneOf(
@@ -36,13 +37,8 @@ const playerSchema = Yup.object().shape({
     ],
     'Invalid bowling style'
   ),
-  category: Yup.string()
-    .oneOf(['Icon', 'Regular'], 'Invalid category')
+  categoryId: Yup.string()
     .required('Category is required'),
-  basePrice: Yup.number()
-    .required('Base price is required')
-    .min(0, 'Base price must be 0 or greater')
-    .typeError('Base price must be a number'),
   tournamentId: Yup.string().required('Tournament is required'),
 });
 
@@ -51,7 +47,6 @@ export default function PlayerDetailPage() {
   const [player, setPlayer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editModal, setEditModal] = useState(false);
-  const [submitError, setSubmitError] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [tournaments, setTournaments] = useState([]);
@@ -114,8 +109,8 @@ export default function PlayerDetailPage() {
       role: '',
       battingStyle: '',
       bowlingStyle: '',
-      category: '',
-      basePrice: '',
+      categoryId: '',
+      basePrice: '', // Read-only, displayed from category
       tournamentId: '',
       soldPrice: '',
       soldTo: '',
@@ -123,9 +118,10 @@ export default function PlayerDetailPage() {
     validationSchema: playerSchema,
     onSubmit: async (values) => {
       try {
-        setSubmitError('');
         const formData = new FormData();
         Object.keys(values).forEach((key) => {
+          // Skip basePrice as it's read-only and comes from category
+          if (key === 'basePrice') return;
           if (values[key] !== null && values[key] !== '' && values[key] !== undefined) {
             formData.append(key, values[key]);
           }
@@ -136,6 +132,7 @@ export default function PlayerDetailPage() {
         }
 
         await playerAPI.update(params.id, formData);
+        showToast('Player updated successfully!', 'success');
         setEditModal(false);
         setImageFile(null);
         setImagePreview('');
@@ -149,10 +146,61 @@ export default function PlayerDetailPage() {
         }
       } catch (error) {
         console.error('Error updating player:', error);
-        setSubmitError(error.response?.data?.message || 'Error updating player');
+        showToast(error.response?.data?.message || 'Error updating player', 'error');
       }
     },
   });
+
+  const handleCategoryChange = (e) => {
+    formik.handleChange(e);
+
+    const selectedCategoryId = e.target.value;
+    const tournamentId =
+      formik.values.tournamentId ||
+      (player && player.tournamentId
+        ? (typeof player.tournamentId === 'object' ? player.tournamentId._id : player.tournamentId)
+        : '');
+
+    if (!tournamentId || !selectedCategoryId) {
+      formik.setFieldValue('basePrice', '');
+      return;
+    }
+
+    const tournament = tournaments.find((t) => t._id === tournamentId);
+
+    if (!tournament || !Array.isArray(tournament.categories)) {
+      formik.setFieldValue('basePrice', '');
+      return;
+    }
+
+    const matchedCategory = tournament.categories.find(
+      (c) => c && c._id && c._id.toString() === selectedCategoryId
+    );
+
+    if (matchedCategory && typeof matchedCategory.basePrice === 'number') {
+      formik.setFieldValue('basePrice', matchedCategory.basePrice.toString());
+    } else {
+      formik.setFieldValue('basePrice', '');
+    }
+  };
+
+  const getCategoryOptions = () => {
+    const tournamentId = formik.values.tournamentId || (player && player.tournamentId
+      ? (typeof player.tournamentId === 'object' ? player.tournamentId._id : player.tournamentId)
+      : '');
+
+    if (!tournamentId) return [];
+
+    const tournament = tournaments.find((t) => t._id === tournamentId);
+    if (!tournament || !Array.isArray(tournament.categories)) return [];
+
+    return tournament.categories
+      .filter((c) => c && c._id)
+      .map((c) => ({
+        value: c._id.toString(),
+        label: c.name || 'Unnamed Category'
+      }));
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -175,6 +223,19 @@ export default function PlayerDetailPage() {
           ? player.tournamentId._id 
           : player.tournamentId;
         
+        const tournament = tournaments.find((t) => t._id === tournamentId);
+        let basePrice = '';
+        
+        // Get basePrice from category if available
+        if (player.categoryId && tournament && Array.isArray(tournament.categories)) {
+          const category = tournament.categories.find(
+            (c) => c && c._id && c._id.toString() === player.categoryId.toString()
+          );
+          if (category && typeof category.basePrice === 'number') {
+            basePrice = category.basePrice.toString();
+          }
+        }
+        
         formik.setValues({
           name: player.name || '',
           mobile: player.mobile || '',
@@ -182,8 +243,8 @@ export default function PlayerDetailPage() {
           role: player.role || '',
           battingStyle: player.battingStyle || '',
           bowlingStyle: player.bowlingStyle || '',
-          category: player.category || '',
-          basePrice: player.basePrice ? player.basePrice.toString() : '',
+          categoryId: player.categoryId ? player.categoryId.toString() : '',
+          basePrice: basePrice,
           tournamentId: tournamentId || '',
           soldPrice: player.soldPrice ? player.soldPrice.toString() : '',
           soldTo: player.soldTo?._id || player.soldTo || '',
@@ -306,8 +367,29 @@ export default function PlayerDetailPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Base Price</p>
-                <p className="text-lg font-bold text-primary-600">{formatCurrency(player.basePrice)}</p>
+                <p className="text-lg font-bold text-primary-600">
+                  {(() => {
+                    if (!player.tournamentId || !player.categoryId) return 'N/A';
+                    const tournamentId = typeof player.tournamentId === 'object' 
+                      ? player.tournamentId._id 
+                      : player.tournamentId;
+                    const tournament = tournaments.find((t) => t._id === tournamentId);
+                    if (!tournament || !Array.isArray(tournament.categories)) return 'N/A';
+                    const category = tournament.categories.find(
+                      (c) => c && c._id && c._id.toString() === player.categoryId.toString()
+                    );
+                    return category && typeof category.basePrice === 'number' 
+                      ? formatCurrency(category.basePrice) 
+                      : 'N/A';
+                  })()}
+                </p>
               </div>
+              {player.note && (
+                <div>
+                  <p className="text-sm text-gray-600">Note</p>
+                  <p className="text-base text-gray-900 whitespace-pre-wrap">{player.note}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -371,7 +453,6 @@ export default function PlayerDetailPage() {
         isOpen={editModal}
         onClose={() => {
           setEditModal(false);
-          setSubmitError('');
           setImageFile(null);
           setImagePreview('');
           formik.resetForm();
@@ -379,11 +460,6 @@ export default function PlayerDetailPage() {
         title="Edit Player"
       >
         <form onSubmit={formik.handleSubmit} className="space-y-4">
-          {submitError && (
-            <div className="rounded-md bg-red-50 p-4 mb-4">
-              <div className="text-sm text-red-700">{submitError}</div>
-            </div>
-          )}
 
           <FormInput
             label="Tournament"
@@ -477,6 +553,7 @@ export default function PlayerDetailPage() {
               { value: 'Batter', label: 'Batter' },
               { value: 'Bowler', label: 'Bowler' },
               { value: 'All-Rounder', label: 'All-Rounder' },
+              { value: 'Wicket Keeper', label: 'Wicket Keeper' },
             ]}
           />
 
@@ -521,28 +598,26 @@ export default function PlayerDetailPage() {
 
           <FormInput
             label="Category"
-            name="category"
+            name="categoryId"
             type="select"
             required
-            value={formik.values.category}
-            onChange={formik.handleChange}
+            value={formik.values.categoryId}
+            onChange={handleCategoryChange}
             onBlur={formik.handleBlur}
-            error={formik.errors.category}
-            touched={formik.touched.category}
+            error={formik.errors.categoryId}
+            touched={formik.touched.categoryId}
             options={[
               { value: '', label: 'Select Category' },
-              { value: 'Icon', label: 'Icon' },
-              { value: 'Regular', label: 'Regular' },
+              ...getCategoryOptions()
             ]}
           />
 
           <FormInput
-            label="Base Price"
+            label="Base Price (from category)"
             name="basePrice"
-            type="number"
-            required
-            min="0"
-            value={formik.values.basePrice}
+            type="text"
+            disabled
+            value={formik.values.basePrice ? formatCurrency(Number(formik.values.basePrice)) : 'N/A'}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
             error={formik.errors.basePrice}
@@ -593,7 +668,6 @@ export default function PlayerDetailPage() {
               type="button"
               onClick={() => {
                 setEditModal(false);
-                setSubmitError('');
                 setImageFile(null);
                 setImagePreview('');
                 formik.resetForm();
