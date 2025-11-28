@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 
-export default function ImageViewerModal({ isOpen, onClose, imageUrl, playerName }) {
+export default function ImageViewerModal({ isOpen, onClose, imageUrl, playerName, teamName }) {
   useEffect(() => {
     if (isOpen) {
       // Prevent body scroll when modal is open
@@ -68,14 +68,14 @@ export default function ImageViewerModal({ isOpen, onClose, imageUrl, playerName
         {/* Image */}
         <img
           src={imageUrl}
-          alt={playerName || 'Player image'}
+          alt={teamName || playerName || 'Image'}
           className="max-w-full max-h-[90vh] object-contain rounded-lg"
         />
 
-        {/* Player Name */}
-        {playerName && (
+        {/* Name Label */}
+        {(teamName || playerName) && (
           <div className="mt-4 text-center">
-            <p className="text-white text-lg font-medium">{playerName}</p>
+            <p className="text-white text-lg font-medium">{teamName || playerName}</p>
           </div>
         )}
       </div>

@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { teamAPI, tournamentAPI } from '@/lib/api';
 import { formatCurrency, getCategoryIcon } from '@/lib/utils';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import TeamAvatar from '@/components/shared/TeamAvatar';
+import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import Link from 'next/link';
 import UserHeader from '@/components/shared/UserHeader';
 
@@ -14,6 +16,7 @@ export default function TeamDetailPage() {
   const [players, setPlayers] = useState([]);
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showTeamImageViewer, setShowTeamImageViewer] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -100,9 +103,19 @@ export default function TeamDetailPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{team.name}</h1>
             <p className="mt-2 text-sm text-gray-600">Team Details and Squad</p>
           </div>
-          {team.logo && (
-            <img src={team.logo} alt={team.name} className="h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-lg flex-shrink-0" />
-          )}
+          <div
+            onClick={() => {
+              if (team.logo && team.logo.trim() !== '') {
+                setShowTeamImageViewer(true);
+              }
+            }}
+          >
+            <TeamAvatar
+              team={team}
+              size="xl"
+              clickable={team.logo && team.logo.trim() !== ''}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -202,6 +215,13 @@ export default function TeamDetailPage() {
           </div>
         </div>
       </main>
+
+      <ImageViewerModal
+        isOpen={showTeamImageViewer}
+        onClose={() => setShowTeamImageViewer(false)}
+        imageUrl={team?.logo || ''}
+        teamName={team?.name}
+      />
     </div>
   );
 }

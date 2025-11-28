@@ -175,9 +175,9 @@ export default function PlayersPage() {
 
         {/* Filters Section */}
         <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
-          <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             {/* Search Bar */}
-            <div className="flex-1 min-w-0">
+            <div className="w-full lg:flex-1 lg:min-w-0">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -195,8 +195,8 @@ export default function PlayersPage() {
             </div>
 
             {/* Filter Dropdowns */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-              <div className="relative">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 w-full lg:w-auto lg:flex-shrink-0 lg:max-w-[600px]">
+              <div className="relative min-w-0">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -221,7 +221,7 @@ export default function PlayersPage() {
                 </select>
               </div>
 
-              <div className="relative">
+              <div className="relative min-w-0">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -238,7 +238,7 @@ export default function PlayersPage() {
                 </select>
               </div>
 
-              <div className="relative">
+              <div className="relative min-w-0">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -258,7 +258,7 @@ export default function PlayersPage() {
                 </select>
               </div>
 
-              <div className="relative">
+              <div className="relative min-w-0">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
