@@ -7,6 +7,7 @@ import { formatCurrency, getCategoryIcon } from '@/lib/utils';
 import Link from 'next/link';
 import Image from 'next/image';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import TeamAvatar from '@/components/shared/TeamAvatar';
 import UserHeader from '@/components/shared/UserHeader';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import { useToast } from '@/components/shared/Toast';
@@ -31,6 +32,8 @@ export default function HomePage() {
   const { showToast } = useToast();
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
+  const [showTeamImageViewer, setShowTeamImageViewer] = useState(false);
+  const [selectedTeamImage, setSelectedTeamImage] = useState({ url: '', name: '' });
 
   const {
     currentPlayer,
@@ -451,25 +454,7 @@ export default function HomePage() {
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Teams</h2>
             <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
               {teams.length > 0 ? (
-                teams.map((team, index) => {
-                  const teamColors = [
-                    'from-yellow-400 to-yellow-500',
-                    'from-green-400 to-green-500',
-                    'from-purple-400 to-purple-500',
-                    'from-blue-400 to-blue-500',
-                    'from-pink-400 to-pink-500',
-                    'from-indigo-400 to-indigo-500',
-                    'from-red-400 to-red-500',
-                    'from-teal-400 to-teal-500',
-                  ];
-                  const colorClass = teamColors[index % teamColors.length];
-                  const initials = team.name
-                    .split(' ')
-                    .map(word => word[0])
-                    .join('')
-                    .toUpperCase()
-                    .slice(0, 2);
-                  
+                teams.map((team) => {
                   return (
                     <Link
                       key={team._id}
@@ -477,8 +462,21 @@ export default function HomePage() {
                       className="block p-4 rounded-xl border-2 border-gray-200 hover:border-primary-300 hover:shadow-lg transition-all duration-200 hover:scale-[1.02] bg-white"
                     >
                       <div className="flex items-start gap-4">
-                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0`}>
-                          {initials}
+                        <div
+                          onClick={(e) => {
+                            if (team.logo && team.logo.trim() !== '') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedTeamImage({ url: team.logo, name: team.name });
+                              setShowTeamImageViewer(true);
+                            }
+                          }}
+                        >
+                          <TeamAvatar
+                            team={team}
+                            size="md"
+                            clickable={team.logo && team.logo.trim() !== ''}
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-base font-bold text-gray-900 mb-2 truncate hover:text-primary-600 transition-colors">
@@ -524,6 +522,13 @@ export default function HomePage() {
         onClose={() => setShowImageViewer(false)}
         imageUrl={selectedPlayerImage.url}
         playerName={selectedPlayerImage.name}
+      />
+
+      <ImageViewerModal
+        isOpen={showTeamImageViewer}
+        onClose={() => setShowTeamImageViewer(false)}
+        imageUrl={selectedTeamImage.url}
+        teamName={selectedTeamImage.name}
       />
     </div>
   );

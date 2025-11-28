@@ -9,6 +9,7 @@ import SearchInput from '@/components/shared/SearchInput';
 import { formatCurrency, calculateBidIncrement, getNextBidAmount, debounce, getCategoryIcon } from '@/lib/utils';
 import { useToast } from '@/components/shared/Toast';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import TeamAvatar from '@/components/shared/TeamAvatar';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import Link from 'next/link';
 
@@ -39,6 +40,8 @@ export default function AuctionPage() {
   const [activeTab, setActiveTab] = useState('remaining');
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
+  const [showTeamImageViewer, setShowTeamImageViewer] = useState(false);
+  const [selectedTeamImage, setSelectedTeamImage] = useState({ url: '', name: '' });
   const [remainingPlayers, setRemainingPlayers] = useState([]);
   const [unsoldAuctionedPlayers, setUnsoldAuctionedPlayers] = useState([]);
 
@@ -795,9 +798,27 @@ export default function AuctionPage() {
                     selectedTeam === team._id ? 'border-primary-500 bg-primary-50' : 'border-gray-200'
                   }`}
                 >
-                  <Link href={`/admin/teams/${team._id}`} className="font-medium text-gray-900 hover:text-primary-600">
-                    {team.name}
-                  </Link>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div
+                      onClick={(e) => {
+                        if (team.logo && team.logo.trim() !== '') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedTeamImage({ url: team.logo, name: team.name });
+                          setShowTeamImageViewer(true);
+                        }
+                      }}
+                    >
+                      <TeamAvatar
+                        team={team}
+                        size="sm"
+                        clickable={team.logo && team.logo.trim() !== ''}
+                      />
+                    </div>
+                    <Link href={`/admin/teams/${team._id}`} className="font-medium text-gray-900 hover:text-primary-600 flex-1">
+                      {team.name}
+                    </Link>
+                  </div>
                   <div className="text-sm text-gray-600">
                     Balance: {formatCurrencyWithNegative(team.remainingAmount)}
                   </div>
@@ -1010,6 +1031,13 @@ export default function AuctionPage() {
         onClose={() => setShowImageViewer(false)}
         imageUrl={selectedPlayerImage.url}
         playerName={selectedPlayerImage.name}
+      />
+
+      <ImageViewerModal
+        isOpen={showTeamImageViewer}
+        onClose={() => setShowTeamImageViewer(false)}
+        imageUrl={selectedTeamImage.url}
+        teamName={selectedTeamImage.name}
       />
     </div>
   );

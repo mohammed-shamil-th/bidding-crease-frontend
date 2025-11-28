@@ -479,7 +479,7 @@ export default function PlayerInvitePage() {
                           src={tournament.logo}
                           alt={tournament.name}
                           fill
-                          className="object-contain"
+                          className="object-contain rounded-2xl"
                           sizes="112px"
                         />
                       </div>

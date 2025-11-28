@@ -6,6 +6,7 @@ import { formatCurrency, getCategoryIcon } from '@/lib/utils';
 import Link from 'next/link';
 import Image from 'next/image';
 import PlayerAvatar from '@/components/shared/PlayerAvatar';
+import TeamAvatar from '@/components/shared/TeamAvatar';
 import ImageViewerModal from '@/components/shared/ImageViewerModal';
 import UserHeader from '@/components/shared/UserHeader';
 import EmptyState from '@/components/shared/EmptyState';
@@ -18,6 +19,8 @@ export default function TeamsPage() {
   const [loading, setLoading] = useState(true);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
+  const [showTeamImageViewer, setShowTeamImageViewer] = useState(false);
+  const [selectedTeamImage, setSelectedTeamImage] = useState({ url: '', name: '' });
   const [pdfModalTeam, setPdfModalTeam] = useState(null);
   const [downloadingTeamId, setDownloadingTeamId] = useState(null);
 
@@ -259,13 +262,31 @@ export default function TeamsPage() {
                   {/* Team Header - Colored Background */}
                   <div className={`${headerColor} p-6 text-white`}>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div>
-                        <Link href={`/teams/${team._id}`} className="block">
-                          <h2 className="text-2xl sm:text-3xl font-bold mb-1 hover:opacity-90 transition-opacity">
-                            {team.name}
-                          </h2>
-                        </Link>
-                        <p className="text-white/90 text-sm sm:text-base">Owner: {team.owner}</p>
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div
+                          onClick={(e) => {
+                            if (team.logo && team.logo.trim() !== '') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedTeamImage({ url: team.logo, name: team.name });
+                              setShowTeamImageViewer(true);
+                            }
+                          }}
+                        >
+                          <TeamAvatar
+                            team={team}
+                            size="lg"
+                            clickable={team.logo && team.logo.trim() !== ''}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <Link href={`/teams/${team._id}`} className="block">
+                            <h2 className="text-2xl sm:text-3xl font-bold mb-1 hover:opacity-90 transition-opacity">
+                              {team.name}
+                            </h2>
+                          </Link>
+                          <p className="text-white/90 text-sm sm:text-base">Owner: {team.owner}</p>
+                        </div>
                       </div>
                       {/* <button
                         type="button"
@@ -460,6 +481,13 @@ export default function TeamsPage() {
         onClose={() => setShowImageViewer(false)}
         imageUrl={selectedPlayerImage.url}
         playerName={selectedPlayerImage.name}
+      />
+
+      <ImageViewerModal
+        isOpen={showTeamImageViewer}
+        onClose={() => setShowTeamImageViewer(false)}
+        imageUrl={selectedTeamImage.url}
+        teamName={selectedTeamImage.name}
       />
     </div>
   );
