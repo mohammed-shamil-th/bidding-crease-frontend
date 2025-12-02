@@ -450,14 +450,14 @@ export default function PlayersPage() {
                           <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate group-hover:text-primary-600 transition-colors">
                             {player.name}
                           </h3>
-                          {(() => {
+                          {/* {(() => {
                             const categoryIcon = getCategoryIcon(player, selectedTournamentData);
                             return categoryIcon ? (
                               <span className="flex-shrink-0 text-lg" role="img" aria-label={player.category || 'Category icon'} title={player.category}>
                                 {categoryIcon}
                               </span>
                             ) : null;
-                          })()}
+                          })()} */}
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
