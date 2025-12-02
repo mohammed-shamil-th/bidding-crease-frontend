@@ -176,6 +176,7 @@ export default function PlayerInvitePage() {
   const [imagePreview, setImagePreview] = useState('');
   const [imageToCrop, setImageToCrop] = useState(null);
   const [showCropModal, setShowCropModal] = useState(false);
+  const [imageTouched, setImageTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -233,6 +234,7 @@ export default function PlayerInvitePage() {
       return;
     }
 
+    setImageTouched(true);
     setImageToCrop(file);
     setShowCropModal(true);
     e.target.value = '';
@@ -240,6 +242,7 @@ export default function PlayerInvitePage() {
 
   const handleCropComplete = (croppedFile) => {
     setImageFile(croppedFile);
+    setImageTouched(true);
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
@@ -247,6 +250,10 @@ export default function PlayerInvitePage() {
     reader.readAsDataURL(croppedFile);
     setShowCropModal(false);
     setImageToCrop(null);
+    // Clear any image error when image is uploaded
+    if (formik.errors.image) {
+      formik.setFieldError('image', undefined);
+    }
   };
 
   const handleDragOver = (e) => {
@@ -268,6 +275,7 @@ export default function PlayerInvitePage() {
         showToast('Image must be smaller than 2MB', 'error');
         return;
       }
+      setImageTouched(true);
       setImageToCrop(file);
       setShowCropModal(true);
     }
@@ -293,8 +301,16 @@ export default function PlayerInvitePage() {
       note: '',
     },
     validationSchema: playerSchema,
-    onSubmit: async (values, { setSubmitting }) => {
+    onSubmit: async (values, { setSubmitting, setFieldError }) => {
       if (!inviteData) return;
+
+      // Validate image is required
+      if (!imageFile) {
+        setFieldError('image', 'Profile photo is required');
+        showToast('Please upload a profile photo', 'error');
+        setSubmitting(false);
+        return;
+      }
 
       setSubmitting(true);
       try {
@@ -307,7 +323,7 @@ export default function PlayerInvitePage() {
         if (values.bowlingStyle) formData.append('bowlingStyle', values.bowlingStyle);
         formData.append('categoryId', values.categoryId);
         if (values.note) formData.append('note', values.note.trim());
-        if (imageFile) formData.append('image', imageFile);
+        formData.append('image', imageFile);
 
         await playerAPI.createPublic(token, formData);
 
@@ -319,6 +335,7 @@ export default function PlayerInvitePage() {
         formik.resetForm();
         setImageFile(null);
         setImagePreview('');
+        setImageTouched(false);
         if (imagePreview) {
           URL.revokeObjectURL(imagePreview);
         }
@@ -521,9 +538,19 @@ export default function PlayerInvitePage() {
 
                 <form onSubmit={formik.handleSubmit} className="space-y-8">
                   {/* Premium Image Upload Section */}
-                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border-2 border-dashed border-gray-300 hover:border-primary-400 transition-all duration-300">
+                  <div 
+                    data-image-section
+                    className={`bg-gradient-to-br rounded-xl p-6 border-2 border-dashed transition-all duration-300 ${
+                      formik.errors.image && imageTouched 
+                        ? 'border-red-400 hover:border-red-500 bg-red-50/50 from-red-50/30 to-red-50/50' 
+                        : 'border-gray-300 hover:border-primary-400 from-gray-50 to-gray-100'
+                    }`}
+                  >
                     <label className="block mb-4">
-                      <span className="text-base font-semibold text-gray-900 mb-1 block">Profile Photo</span>
+                      <span className="text-base font-semibold text-gray-900 mb-1 block">
+                        Profile Photo
+                        <span className="text-red-500 ml-1.5">*</span>
+                      </span>
                       <span className="text-sm text-gray-600">Add a professional photo to personalize your profile</span>
                     </label>
 
@@ -569,7 +596,10 @@ export default function PlayerInvitePage() {
                       />
                       <button
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => {
+                          fileInputRef.current?.click();
+                          setImageTouched(true);
+                        }}
                         className="inline-flex items-center px-5 py-2.5 bg-primary-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg hover:bg-primary-700 transform hover:scale-105 transition-all duration-200"
                       >
                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -583,6 +613,7 @@ export default function PlayerInvitePage() {
                           onClick={() => {
                             setImageFile(null);
                             setImagePreview('');
+                            setImageTouched(true);
                             if (imagePreview) {
                               URL.revokeObjectURL(imagePreview);
                             }
@@ -596,6 +627,16 @@ export default function PlayerInvitePage() {
                         Drag and drop or click to upload • PNG, JPG up to 2MB
                       </p>
                     </div>
+                    {formik.errors.image && imageTouched && (
+                      <div className="mt-4 pt-4 border-t border-red-200">
+                        <p className="text-sm text-red-600 flex items-center animate-fade-in">
+                          <svg className="w-4 h-4 mr-1.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          {formik.errors.image}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Personal Information Section */}
