@@ -72,6 +72,22 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchTournaments();
+    // Load tournament from sessionStorage
+    try {
+      const saved = sessionStorage.getItem('selectedTournament');
+      if (saved) {
+        setSelectedTournament(saved);
+      }
+    } catch (error) {
+      console.error('Error loading tournament from sessionStorage:', error);
+    }
+
+    // Listen for tournament changes from header
+    const handleTournamentChange = (event) => {
+      setSelectedTournament(event.detail || '');
+    };
+    window.addEventListener('tournamentChanged', handleTournamentChange);
+    return () => window.removeEventListener('tournamentChanged', handleTournamentChange);
   }, []);
 
   useEffect(() => {
@@ -93,12 +109,28 @@ export default function HomePage() {
     try {
       const response = await tournamentAPI.getAll();
       setTournaments(response.data.data);
-      // Select first ongoing tournament, or first tournament
-      const ongoing = response.data.data.find((t) => t.status === 'ongoing');
-      if (ongoing) {
-        setSelectedTournament(ongoing._id);
-      } else if (response.data.data.length > 0) {
-        setSelectedTournament(response.data.data[0]._id);
+      // Only set default if no tournament is already selected from sessionStorage
+      try {
+        const saved = sessionStorage.getItem('selectedTournament');
+        if (!saved && response.data.data.length > 0) {
+          // Select first ongoing tournament, or first tournament
+          const ongoing = response.data.data.find((t) => t.status === 'ongoing');
+          if (ongoing) {
+            setSelectedTournament(ongoing._id);
+          } else {
+            setSelectedTournament(response.data.data[0]._id);
+          }
+        }
+      } catch (error) {
+        // If sessionStorage fails, just set default
+        if (response.data.data.length > 0) {
+          const ongoing = response.data.data.find((t) => t.status === 'ongoing');
+          if (ongoing) {
+            setSelectedTournament(ongoing._id);
+          } else {
+            setSelectedTournament(response.data.data[0]._id);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching tournaments:', error);
@@ -196,59 +228,34 @@ export default function HomePage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Tournament Selector - Enhanced */}
-        <div className="mb-6 bg-gradient-to-r from-primary-50 to-blue-50 border border-primary-200 rounded-2xl p-5 sm:p-6 shadow-md">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
-                Select Tournament
-              </label>
-              {selectedTournament ? (
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="flex items-center gap-3">
-                    {selectedTournamentData?.logo ? (
-                      <div className="relative w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
-                        <Image
-                          src={selectedTournamentData.logo}
-                          alt={selectedTournamentData.name || 'Tournament Logo'}
-                          fill
-                          className="object-contain rounded-lg"
-                          sizes="(max-width: 640px) 48px, 56px"
-                        />
-                      </div>
-                    ) : (
-                      <span className="text-2xl sm:text-3xl flex-shrink-0">🏆</span>
-                    )}
-                    <h3 className="text-2xl sm:text-3xl font-bold text-primary-700">
-                      {selectedTournamentData?.name || 'Tournament'}
-                    </h3>
+        {/* Tournament Display - Tournament selection is now in header */}
+        {selectedTournament && selectedTournamentData && (
+          <div className="mb-6 bg-gradient-to-r from-primary-50 to-blue-50 border border-primary-200 rounded-2xl p-5 sm:p-6 shadow-md">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                {selectedTournamentData?.logo ? (
+                  <div className="relative w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
+                    <Image
+                      src={selectedTournamentData.logo}
+                      alt={selectedTournamentData.name || 'Tournament Logo'}
+                      fill
+                      className="object-contain rounded-lg"
+                      sizes="(max-width: 640px) 48px, 56px"
+                    />
                   </div>
-                  <span className="px-3 py-1.5 text-xs font-semibold rounded-full bg-white/80 backdrop-blur-sm text-primary-700 border border-primary-200 shadow-sm">
-                    {selectedTournamentData?.status || ''}
-                  </span>
-                </div>
-              ) : (
-                <p className="text-lg sm:text-xl font-semibold text-gray-400 italic">
-                  No tournament selected
-                </p>
-              )}
-            </div>
-            <div className="sm:w-72 flex-shrink-0">
-              <select
-                value={selectedTournament}
-                onChange={(e) => setSelectedTournament(e.target.value)}
-                className="w-full px-4 py-3 text-sm border-2 border-primary-200 rounded-xl shadow-sm bg-white text-gray-900 font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all hover:border-primary-300"
-              >
-                <option value="">Select Tournament</option>
-                {tournaments.map((tournament) => (
-                  <option key={tournament._id} value={tournament._id}>
-                    {tournament.name} ({tournament.status})
-                  </option>
-                ))}
-              </select>
+                ) : (
+                  <span className="text-2xl sm:text-3xl flex-shrink-0">🏆</span>
+                )}
+                <h3 className="text-2xl sm:text-3xl font-bold text-primary-700">
+                  {selectedTournamentData?.name || 'Tournament'}
+                </h3>
+              </div>
+              <span className="px-3 py-1.5 text-xs font-semibold rounded-full bg-white/80 backdrop-blur-sm text-primary-700 border border-primary-200 shadow-sm">
+                {selectedTournamentData?.status || ''}
+              </span>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Live Auction */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

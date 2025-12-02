@@ -12,6 +12,8 @@ import UserHeader from '@/components/shared/UserHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import PlayerCardSkeleton from '@/components/shared/PlayerCardSkeleton';
 
+const STORAGE_KEY = 'playersPageState';
+
 export default function PlayersPage() {
   const [players, setPlayers] = useState([]);
   const [tournaments, setTournaments] = useState([]);
@@ -19,8 +21,8 @@ export default function PlayersPage() {
   const [selectedTournamentData, setSelectedTournamentData] = useState(null);
   const [filter, setFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,69 @@ export default function PlayersPage() {
     total: 0,
     totalPages: 1,
   });
+
+  // Load state from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.filter !== undefined) setFilter(parsed.filter);
+        if (parsed.categoryFilter !== undefined) setCategoryFilter(parsed.categoryFilter);
+        if (parsed.sortBy !== undefined) setSortBy(parsed.sortBy);
+        if (parsed.sortOrder !== undefined) setSortOrder(parsed.sortOrder);
+        if (parsed.searchInput !== undefined) setSearchInput(parsed.searchInput);
+        if (parsed.searchQuery !== undefined) setSearchQuery(parsed.searchQuery);
+        if (parsed.pagination) {
+          setPagination(prev => ({
+            ...prev,
+            page: parsed.pagination.page || prev.page,
+            limit: parsed.pagination.limit || prev.limit,
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading state from sessionStorage:', error);
+    }
+
+    // Load tournament from sessionStorage
+    try {
+      const savedTournament = sessionStorage.getItem('selectedTournament');
+      if (savedTournament) {
+        setSelectedTournament(savedTournament);
+      }
+    } catch (error) {
+      console.error('Error loading tournament from sessionStorage:', error);
+    }
+
+    // Listen for tournament changes from header
+    const handleTournamentChange = (event) => {
+      setSelectedTournament(event.detail || '');
+    };
+    window.addEventListener('tournamentChanged', handleTournamentChange);
+    return () => window.removeEventListener('tournamentChanged', handleTournamentChange);
+  }, []);
+
+  // Save state to sessionStorage whenever it changes
+  useEffect(() => {
+    try {
+      const stateToSave = {
+        filter,
+        categoryFilter,
+        sortBy,
+        sortOrder,
+        searchInput,
+        searchQuery,
+        pagination: {
+          page: pagination.page,
+          limit: pagination.limit,
+        },
+      };
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    } catch (error) {
+      console.error('Error saving state to sessionStorage:', error);
+    }
+  }, [filter, categoryFilter, sortBy, sortOrder, searchInput, searchQuery, pagination.page, pagination.limit]);
 
   const getCategoryOptions = () => {
     if (!tournaments.length) return [];
@@ -66,6 +131,16 @@ export default function PlayersPage() {
     fetchTournaments();
   }, []);
 
+  // Update selectedTournamentData when selectedTournament changes
+  useEffect(() => {
+    if (selectedTournament && tournaments.length > 0) {
+      const tournament = tournaments.find(t => t._id === selectedTournament);
+      setSelectedTournamentData(tournament || null);
+    } else {
+      setSelectedTournamentData(null);
+    }
+  }, [selectedTournament, tournaments]);
+
   // Debounced search handler
   const debouncedSearchRef = useRef(
     debounce((value) => {
@@ -85,9 +160,6 @@ export default function PlayersPage() {
     try {
       const response = await tournamentAPI.getAll();
       setTournaments(response.data.data);
-      if (response.data.data.length > 0) {
-        setSelectedTournament(response.data.data[0]._id);
-      }
     } catch (error) {
       console.error('Error fetching tournaments:', error);
     }
@@ -125,10 +197,14 @@ export default function PlayersPage() {
 
   const handlePageChange = (newPage) => {
     fetchPlayers(newPage, pagination.limit);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleLimitChange = (newLimit) => {
     fetchPlayers(1, newLimit);
+    // Scroll to top when limit changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Backend handles search, so we use players directly
@@ -139,13 +215,30 @@ export default function PlayersPage() {
 
   // Reset all filters
   const resetFilters = () => {
-    setSelectedTournament('');
     setFilter('all');
     setCategoryFilter('all');
     setSearchInput('');
     setSearchQuery('');
-    setSortBy('name');
-    setSortOrder('asc');
+    setSortBy('createdAt');
+    setSortOrder('desc');
+    // Clear session storage for filters (but keep tournament)
+    try {
+      const stateToSave = {
+        filter: 'all',
+        categoryFilter: 'all',
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        searchInput: '',
+        searchQuery: '',
+        pagination: {
+          page: 1,
+          limit: pagination.limit,
+        },
+      };
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    } catch (error) {
+      console.error('Error saving state to sessionStorage:', error);
+    }
   };
 
   // Get role-based gradient colors
@@ -195,32 +288,7 @@ export default function PlayersPage() {
             </div>
 
             {/* Filter Dropdowns */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 w-full lg:w-auto lg:flex-shrink-0 lg:max-w-[600px]">
-              <div className="relative min-w-0">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-                <select
-                  value={selectedTournament}
-                  onChange={(e) => {
-                    const tournamentId = e.target.value;
-                    setSelectedTournament(tournamentId);
-                    const tournament = tournaments.find(t => t._id === tournamentId);
-                    setSelectedTournamentData(tournament || null);
-                  }}
-                  className="w-full pl-9 pr-3 py-3 border-2 border-gray-200 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none cursor-pointer transition-all"
-                >
-                  <option value="">All Tournaments</option>
-                  {tournaments.map((tournament) => (
-                    <option key={tournament._id} value={tournament._id}>
-                      {tournament.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4 w-full lg:w-auto lg:flex-shrink-0 lg:max-w-[600px]">
               <div className="relative min-w-0">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -273,10 +341,10 @@ export default function PlayersPage() {
                   }}
                   className="w-full pl-9 pr-3 py-3 border-2 border-gray-200 rounded-xl text-sm text-gray-900 bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none cursor-pointer transition-all"
                 >
-                  <option value="name-asc">Name (A-Z)</option>
-                  <option value="name-desc">Name (Z-A)</option>
                   <option value="createdAt-desc">Newest First</option>
                   <option value="createdAt-asc">Oldest First</option>
+                  <option value="name-asc">Name (A-Z)</option>
+                  <option value="name-desc">Name (Z-A)</option>
                 </select>
               </div>
             </div>
