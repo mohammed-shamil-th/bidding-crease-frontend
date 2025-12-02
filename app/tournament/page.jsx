@@ -17,6 +17,43 @@ export default function TournamentPage() {
   }, []);
 
   useEffect(() => {
+    // Listen for tournament changes from header
+    const handleTournamentChange = (event) => {
+      const tournamentId = event.detail || '';
+      if (tournamentId && tournaments.length > 0) {
+        const tournament = tournaments.find(t => t._id === tournamentId);
+        if (tournament) {
+          setSelectedTournament(tournament);
+        } else {
+          setSelectedTournament(null);
+        }
+      } else {
+        setSelectedTournament(null);
+      }
+    };
+    window.addEventListener('tournamentChanged', handleTournamentChange);
+    return () => window.removeEventListener('tournamentChanged', handleTournamentChange);
+  }, [tournaments]);
+
+  useEffect(() => {
+    // Update selectedTournament when tournaments are loaded and we have a saved tournament
+    try {
+      const saved = sessionStorage.getItem('selectedTournament');
+      if (saved && tournaments.length > 0) {
+        const tournament = tournaments.find(t => t._id === saved);
+        if (tournament) {
+          setSelectedTournament(tournament);
+        }
+      } else if (!saved && tournaments.length > 0 && !selectedTournament) {
+        // Only set default if no tournament is selected and no saved tournament
+        setSelectedTournament(tournaments[0]);
+      }
+    } catch (error) {
+      console.error('Error loading tournament from sessionStorage:', error);
+    }
+  }, [tournaments]);
+
+  useEffect(() => {
     if (selectedTournament) {
       fetchRules();
     }
@@ -26,9 +63,6 @@ export default function TournamentPage() {
     try {
       const response = await tournamentAPI.getAll();
       setTournaments(response.data.data);
-      if (response.data.data.length > 0) {
-        setSelectedTournament(response.data.data[0]);
-      }
     } catch (error) {
       console.error('Error fetching tournaments:', error);
     } finally {
@@ -64,25 +98,7 @@ export default function TournamentPage() {
           <p className="mt-2 text-sm text-gray-600">View tournament details and rules</p>
         </div>
 
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Tournament
-          </label>
-          <select
-            value={selectedTournament?._id || ''}
-            onChange={(e) => {
-              const tournament = tournaments.find((t) => t._id === e.target.value);
-              setSelectedTournament(tournament);
-            }}
-            className="block w-full max-w-md border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-          >
-            {tournaments.map((tournament) => (
-              <option key={tournament._id} value={tournament._id}>
-                {tournament.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Tournament selection is now in header */}
 
         {selectedTournament && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">

@@ -26,6 +26,22 @@ export default function TeamsPage() {
 
   useEffect(() => {
     fetchTournaments();
+    // Load tournament from sessionStorage
+    try {
+      const saved = sessionStorage.getItem('selectedTournament');
+      if (saved) {
+        setSelectedTournament(saved);
+      }
+    } catch (error) {
+      console.error('Error loading tournament from sessionStorage:', error);
+    }
+
+    // Listen for tournament changes from header
+    const handleTournamentChange = (event) => {
+      setSelectedTournament(event.detail || '');
+    };
+    window.addEventListener('tournamentChanged', handleTournamentChange);
+    return () => window.removeEventListener('tournamentChanged', handleTournamentChange);
   }, []);
 
   useEffect(() => {
@@ -38,8 +54,17 @@ export default function TeamsPage() {
     try {
       const response = await tournamentAPI.getAll();
       setTournaments(response.data.data);
-      if (response.data.data.length > 0) {
-        setSelectedTournament(response.data.data[0]._id);
+      // Only set default if no tournament is already selected from sessionStorage
+      try {
+        const saved = sessionStorage.getItem('selectedTournament');
+        if (!saved && response.data.data.length > 0) {
+          setSelectedTournament(response.data.data[0]._id);
+        }
+      } catch (error) {
+        // If sessionStorage fails, just set first tournament
+        if (response.data.data.length > 0) {
+          setSelectedTournament(response.data.data[0]._id);
+        }
       }
     } catch (error) {
       console.error('Error fetching tournaments:', error);
