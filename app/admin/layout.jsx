@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Cookies from 'js-cookie';
 import { authAPI } from '@/lib/api';
+import AppLogo from '@/components/shared/AppLogo';
 
 export default function AdminLayout({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -71,9 +72,7 @@ export default function AdminLayout({ children }) {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <Link href="/admin/dashboard" className="text-2xl font-bold text-primary-600">
-                  BiddingCrease
-                </Link>
+                <AppLogo href="/admin/dashboard" />
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 <Link
