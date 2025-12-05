@@ -26,6 +26,7 @@ export default function PlayersPage() {
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [exportLoading, setExportLoading] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedPlayerImage, setSelectedPlayerImage] = useState({ url: '', name: '' });
   const [pagination, setPagination] = useState({
@@ -255,6 +256,56 @@ export default function PlayersPage() {
     }
   };
 
+  // Handle Excel export
+  const handleExportToExcel = async () => {
+    try {
+      setExportLoading(true);
+      
+      // Build params with current filters (excluding search and pagination)
+      const params = {
+        sortBy,
+        sortOrder,
+      };
+      
+      if (selectedTournament) params.tournamentId = selectedTournament;
+      if (filter === 'sold') params.sold = 'true';
+      if (filter === 'unsold') params.unsold = 'true';
+      if (categoryFilter !== 'all') params.category = categoryFilter;
+
+      const response = await playerAPI.exportToExcel(params);
+      
+      // Create blob and trigger download
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = 'players-export.xlsx';
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+        if (fileNameMatch) {
+          fileName = fileNameMatch[1];
+        }
+      }
+      
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Failed to export players. Please try again.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <UserHeader />
@@ -350,7 +401,7 @@ export default function PlayersPage() {
             </div>
           </div>
 
-          {/* Filter Info & Reset */}
+          {/* Filter Info & Actions */}
           <div className="mt-4 pt-4 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="text-sm text-gray-600">
               Showing <span className="font-semibold text-gray-900">{pagination.total}</span> player{pagination.total !== 1 ? 's' : ''}
@@ -360,17 +411,41 @@ export default function PlayersPage() {
                 </span>
               )}
             </div>
-            {hasActiveFilters && (
+            <div className="flex items-center gap-3">
               <button
-                onClick={resetFilters}
-                className="text-sm font-medium text-primary-600 hover:text-primary-800 flex items-center gap-1.5 transition-colors"
+                onClick={handleExportToExcel}
+                disabled={exportLoading || loading}
+                className="text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Reset Filters
+                {exportLoading ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export to Excel
+                  </>
+                )}
               </button>
-            )}
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className="text-sm font-medium text-primary-600 hover:text-primary-800 flex items-center gap-1.5 transition-colors"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Reset Filters
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
